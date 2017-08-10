@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Cron:etc/crontab.xsd">
+    <group id="default">
+        <job name="stock_price_15mins" instance="Camiloo\Channelunity\Command\Sync" method="every15Minutes">
+            <schedule>*/15 * * * *</schedule>
+        </job>
+        <job name="stock_price_60mins" instance="Camiloo\Channelunity\Command\Sync" method="everyHour">
+            <schedule>0 * * * *</schedule>
+        </job>
+        <job name="stock_price_daily" instance="Camiloo\Channelunity\Command\Sync" method="everyDay">
+            <schedule>0 4 * * *</schedule>
+        </job>
+    </group>
+</config>

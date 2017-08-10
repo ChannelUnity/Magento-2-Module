@@ -1,0 +1,65 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Config:etc/system_file.xsd">
+    <system>
+        <tab id="camiloo_channelunity_tab" translate="label" sortOrder="120">
+            <label>ChannelUnity</label>
+        </tab>
+        <section id="channelunityint" translate="label" type="text" sortOrder="1" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Set up ChannelUnity</label>
+            <tab>camiloo_channelunity_tab</tab>
+            <resource>Camiloo_Channelunity::config</resource>
+            <group id="generalsettings" translate="label" type="text" showInDefault="1" showInWebsite="1" showInStore="1">
+                <label>ChannelUnity Merchant Credentials and Options</label>
+                <comment>
+                    <![CDATA[
+                        <b>Credentials</b>
+                        <br />
+                        Please enter the account credentials you received when you signed up for your ChannelUnity account.
+                    ]]>
+                </comment>
+                <field id="merchantname" translate="label" type="text" sortOrder="15" showInDefault="1" showInWebsite="0" showInStore="0">
+                    <label>Merchant Name</label>
+                </field>
+                <field id="merchantusername" translate="label" type="text" sortOrder="20" showInDefault="1" showInWebsite="0" showInStore="0">
+                    <label>User Name</label>
+                </field>
+                <field id="merchantpassword" translate="label" type="password" sortOrder="25" showInDefault="1" showInWebsite="0" showInStore="0">
+                    <label>Password</label>
+                </field>
+                <field id="apikey" translate="label" type="text" sortOrder="30" showInDefault="1" showInWebsite="0" showInStore="0">
+                    <label>API Key</label>
+                    <comment><![CDATA[Please leave this blank and it will be populated automatically.]]></comment>
+                </field>
+                <field id="ignoredisabledproducts" translate="label" type="select" sortOrder="35" showInDefault="1" showInWebsite="0" showInStore="0">
+                    <label>Ignore Disabled Products</label>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                    <comment><![CDATA[Setting No means that Disabled products come into ChannelUnity. Setting Yes means Disabled products do not come into ChannelUnity.]]></comment>
+                </field>
+                <field id="priceinctax" translate="label" type="select" sortOrder="40" showInDefault="1" showInWebsite="0" showInStore="0">
+                    <label>Force Tax Values Into Imported Orders</label>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                    <comment><![CDATA[Set to Yes to force tax values from the marketplace into orders. Set to No and Magento will set tax values in the default way according to your current settings.]]></comment>
+                </field>
+                <field id="ignorefbaqty" translate="label" type="select" sortOrder="45" showInDefault="1" showInWebsite="0" showInStore="0">
+                    <label>Ignore Quantity For FBA Orders</label>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                    <comment><![CDATA[Set this to Yes to ensure that qty is not decreased for orders that Amazon fulfil (FBA).]]></comment>
+                </field>
+                <field id="updatestockprice" translate="label" type="select" sortOrder="50" showInDefault="1" showInWebsite="0" showInStore="0">
+                    <label>Sync Stock And Price</label>
+                    <source_model>Camiloo\Channelunity\Model\SyncSourceModel</source_model>
+                    <comment><![CDATA[This option sends stock and price values for all products to ChannelUnity on a regular basis.]]></comment>
+                </field>
+                <field id="allowstubproducts" translate="label" type="select" sortOrder="55" showInDefault="1" showInWebsite="0" showInStore="0">
+                    <label>Allow Stub Product Creation</label>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                    <comment><![CDATA[Allow creating of stub products in Magento when an order is imported with a SKU that doesn't exist.]]></comment>
+                </field>
+                <field id="enablelogging" translate="label" type="select" sortOrder="60" showInDefault="1" showInWebsite="0" showInStore="0">
+                    <label>Enable Logging</label>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                </field>
+            </group>
+        </section>
+    </system>
+</config>

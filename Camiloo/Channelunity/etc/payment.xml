@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<!--
+/**
+ * ChannelUnity connector for Magento Commerce
+ *
+ * @category   Camiloo
+ * @package    Camiloo_Channelunity
+ * @copyright  Copyright (c) 2016-2017 ChannelUnity Limited (http://www.channelunity.com)
+ * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
+ */
+-->
+<payment xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="../../../Magento/Payment/etc/payment.xsd">
+    <groups>
+        <group id="offline">
+            <label>Offline Payment Methods</label>
+        </group>
+    </groups>
+    <methods>
+        <method name="channelunitypayment">
+            <allow_multiple_address>1</allow_multiple_address>
+        </method>
+    </methods>
+</payment>

@@ -1,0 +1,17 @@
+<?php
+$infoArray = $this->getOrder()->getPayment()->getAdditionalInformation();
+
+if (array_key_exists('service_sku', $infoArray)) {
+    echo "The order was imported from " . $this->channelSkuToName($infoArray['service_sku']) . ".<br/>";
+}
+if (array_key_exists('order_flags', $infoArray)) {
+    $orderFlags = $infoArray['order_flags'];
+    // Spit out known information
+    if (strpos($orderFlags, "AMAZON_FBA") !== false) {
+        echo "Order was fulfilled by Amazon.<br/>";
+    }
+    if (strpos($orderFlags, "AMAZON_PRIME") !== false) {
+        echo "<strong>Seller Fulfilled Prime</strong><br/>";
+    }
+}
+?>

@@ -1,0 +1,44 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:Event/etc/events.xsd">
+    
+    <!-- Product related observers -->
+    <event name="catalog_product_save_after">
+        <observer name="SaveProduct" instance="Camiloo\Channelunity\Observer\SaveProductObserver" />
+    </event>
+    <event name="controller_action_postdispatch_catalog_product_massStatus">
+        <observer name="SaveProductMassStatus" instance="Camiloo\Channelunity\Observer\SaveProductObserver" />
+    </event>
+    <event name="catalog_product_attribute_update_before">
+        <observer name="AttributeUpdate" instance="Camiloo\Channelunity\Observer\BulkAttributeUpdateObserver" />
+    </event>
+    <event name="controller_action_postdispatch_catalog_product_action_attribute_save">
+        <observer name="SaveProductAttributes" instance="Camiloo\Channelunity\Observer\SaveProductObserver" />
+    </event>
+    <!--
+    Doesn't work unless on Magento 2.2+
+    <event name="cataloginventory_stock_item_save_after">
+        <observer name="SaveQuantity" instance="Camiloo\Channelunity\Observer\SaveQuantityObserver" />
+    </event>-->
+    <event name="catalog_product_delete_after_done">
+        <observer name="DeleteProduct" instance="Camiloo\Channelunity\Observer\DeleteProductObserver" />
+    </event>
+    
+    <!-- Order related observers -->
+    <event name="sales_order_save_after">
+        <observer name="OrderSave" instance="Camiloo\Channelunity\Observer\OrderPlacedObserver" />
+    </event>
+    
+    <!-- Category and stores -->
+    <event name="catalog_category_save_after">
+        <observer name="SaveCategory" instance="Camiloo\Channelunity\Observer\SaveCategoryObserver" />
+    </event>
+    <event name="catalog_controller_category_delete">
+        <observer name="DeleteCategory" instance="Camiloo\Channelunity\Observer\DeleteCategoryObserver" />
+    </event>
+    <event name="controller_action_postdispatch_adminhtml_system_store_save">
+        <observer name="SaveStore" instance="Camiloo\Channelunity\Observer\SaveStoreObserver" />
+    </event>
+    <event name="store_delete">
+        <observer name="DeleteStore" instance="Camiloo\Channelunity\Observer\DeleteStoreObserver" />
+    </event>
+</config>
