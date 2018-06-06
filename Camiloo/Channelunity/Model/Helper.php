@@ -89,7 +89,7 @@ class Helper extends \Magento\Framework\App\Helper\AbstractHelper
             </ChannelUnity>");
         $result = $this->postRequest($this->getEndpoint(), ['message' => $xml]);
 
-        $xmlResult = simplexml_load_string($result, 'SimpleXMLElement', LIBXML_NOCDATA);
+        $xmlResult = @simplexml_load_string($result, 'SimpleXMLElement', LIBXML_NOCDATA);
 
         if (!is_object($xmlResult)) {
             throw new LocalizedException(__('Result XML was not loaded in verifypost()'));
@@ -109,7 +109,7 @@ class Helper extends \Magento\Framework\App\Helper\AbstractHelper
         if (strpos($result, "<MerchantName>") !== false || strpos($result, "<merchantname>") !== false) {
             $str = "<Status>OK</Status>\n";
         } else {
-            $xml = simplexml_load_string($result, 'SimpleXMLElement', LIBXML_NOCDATA);
+            $xml = @simplexml_load_string($result, 'SimpleXMLElement', LIBXML_NOCDATA);
 
             if (isset($xml->Status)) {
                 $str = "<Status>{$xml->Status}</Status>\n";
@@ -166,20 +166,24 @@ class Helper extends \Magento\Framework\App\Helper\AbstractHelper
             }
             $xml .= "<RequestType>ValidateUser</RequestType>\n";
             $xml .= "</ChannelUnity>";
+            
+            try {
+                $result = $this->postRequest($this->getEndpoint(), ['message' => urlencode($xml)]);
 
-            $result = $this->postRequest($this->getEndpoint(), ['message' => urlencode($xml)]);
+                $xml = @simplexml_load_string($result, 'SimpleXMLElement', LIBXML_NOCDATA);
 
-            $xml = simplexml_load_string($result, 'SimpleXMLElement', LIBXML_NOCDATA);
+                if (isset($xml->ApiKey)) {
+                    $this->config->saveConfig(
+                        'channelunityint/generalsettings/apikey',
+                        $xml->ApiKey,
+                        'default',
+                        0
+                    );
 
-            if (isset($xml->ApiKey)) {
-                $this->config->saveConfig(
-                    'channelunityint/generalsettings/apikey',
-                    $xml->ApiKey,
-                    'default',
-                    0
-                );
-
-                $apikeyTemp = $xml->ApiKey;
+                    $apikeyTemp = $xml->ApiKey;
+                }
+            } catch (\Exception $e) {
+                $this->logError($e->getMessage());
             }
         }
 

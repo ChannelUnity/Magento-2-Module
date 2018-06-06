@@ -38,7 +38,7 @@ class BulkAttributeUpdateObserver implements ObserverInterface
         $this->helper->logInfo("Observer called: Bulk Attribute Update");
 
         $attributePids = $observer->getProductIds();
-        $this->helper->logInfo("Observer Bulk Attribute product IDs are ".print_r($attributePids, true));
+        $this->helper->logInfo("Observer Bulk Attribute product IDs are ".implode(",", $attributePids));
 
         if (is_array($attributePids)) {
             $this->registry->unregister('attribute_pids');

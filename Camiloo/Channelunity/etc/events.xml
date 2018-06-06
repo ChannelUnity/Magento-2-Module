@@ -27,6 +27,9 @@
     <event name="sales_order_save_after">
         <observer name="OrderSave" instance="Camiloo\Channelunity\Observer\OrderPlacedObserver" />
     </event>
+    <event name="sales_order_creditmemo_refund">
+        <observer name="OrderRefund" instance="Camiloo\Channelunity\Observer\OrderRefundedObserver" />
+    </event>
     
     <!-- Category and stores -->
     <event name="catalog_category_save_after">

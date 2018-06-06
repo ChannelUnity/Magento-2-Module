@@ -181,13 +181,34 @@ class Orders extends AbstractModel
     {
         $orderXml = $this->generateCuXmlForOrderStatus($order);
 
-        if (!empty($orderXml) && $order->getState() == 'complete') {
+        if (!empty($orderXml) && $order->getState() == 'complete')
+        {
             $orderXml .= "<ShipmentDate>" . date("c") . "</ShipmentDate>\n";
             $orderXml .= "<CarrierName><![CDATA[$carrierName]]></CarrierName>\n";
             $orderXml .= "<ShipmentMethod><![CDATA[$shipMethod]]></ShipmentMethod>\n";
             $orderXml .= "<TrackingNumber><![CDATA[$trackNumber]]></TrackingNumber>\n";
         }
 
+        return $orderXml;
+    }
+    
+    public function generateCuXmlForPartialAction($order, $actionItems, $shippingAmount)
+    {
+        $orderXml = $this->generateCuXmlForOrderStatus($order);
+        
+        if (!empty($orderXml)) {
+            $orderXml .= "\t<PartialActionDate>" . date("c") . "</PartialActionDate>\n";
+            foreach ($actionItems as $item) {
+                $orderXml .= "\t<PartialActionItem>\n";
+                foreach ($item as $k => $v) {
+                    $orderXml .= "\t\t<$k>$v</$k>\n";
+                }
+                $orderXml .= "\t</PartialActionItem>\n";
+            }
+            if ($shippingAmount > 0) {
+                $orderXml .= "\t<ShippingRefund>$shippingAmount</ShippingRefund>\n";
+            }
+        }
         return $orderXml;
     }
 
@@ -220,7 +241,7 @@ class Orders extends AbstractModel
         $this->helper->logInfo("Order creation. Force Tax? $forceTax");
         $websiteId = $store->getWebsiteId();
         
-        // Construct shipping and billing addresses        
+        // Construct shipping and billing addresses
         $shippingInfo = $order->ShippingInfo;
         $billingInfo = $order->BillingInfo;
         
@@ -254,7 +275,6 @@ class Orders extends AbstractModel
             // Magento 2.1 requires the use of cart management interface
             $cartId = $this->cartManagementInterface->createEmptyCart();
             $quote = $this->cartRepositoryInterface->get($cartId);
-        
         } else {
             // Create a new quote
             $quote = $this->quote->create();
@@ -314,7 +334,6 @@ class Orders extends AbstractModel
         // Add items to the quote
         $itemSeq = 1;
         foreach ($order->OrderItems->Item as $item) {
-            
             $this->helper->logInfo("doCreate: Line ".__LINE__."");
             $this->registry->unregister('cu_sequence-'.$itemSeq);
             $this->registry->register('cu_sequence-'.$itemSeq, $item);
@@ -322,8 +341,10 @@ class Orders extends AbstractModel
             //TODO test $this->productFactory on 2.0.x
             
             $searchCriteria = $this->searchCriteriaBuilder->addFilter(
-                    (string) $dataArray->SkuAttribute,
-                    (string) $item->SKU, 'eq')->create();
+                (string) $dataArray->SkuAttribute,
+                (string) $item->SKU,
+                'eq'
+            )->create();
             
             $this->helper->logInfo("doCreate: Line ".__LINE__."");
             $existingProducts = $this->productRepository->getList($searchCriteria);
@@ -336,12 +357,9 @@ class Orders extends AbstractModel
                 
                 // Check whether or not we want stub products
                 if ($this->helper->allowStubProducts()) {
-                    
                     $this->helper->logInfo("doCreate: Creating stub product now");
                     $itemArray = [$this->createStubProduct($item)];
-                }
-                else {
-                    
+                } else {
                     $this->helper->logInfo("doCreate: Stub products not allowed");
                     throw new LocalizedException(__("ProductNotFound"));
                 }
@@ -349,10 +367,9 @@ class Orders extends AbstractModel
             $this->helper->logInfo("doCreate: Line ".__LINE__."");
             
             foreach ($itemArray as $product) {
-                
                 $this->helper->logInfo("doCreate: Line ".__LINE__."");
             
-                $product->setPrice($conversionRate != null && $conversionRate > 0 ? $item->Price/$conversionRate : $item->Price);
+                $product->setPrice($conversionRate != null && $conversionRate > 0 ? (float)$item->Price/$conversionRate : (float)$item->Price);
                 $product->setName($item->Name);
                 $this->helper->logInfo("doCreate: Adding {$item->SKU} to quote");
                 $quote->addProduct($product, (int) $item->Quantity);
@@ -428,8 +445,7 @@ class Orders extends AbstractModel
         
         if (version_compare($this->helper->getMagentoVersion(), '2.1.0') >= 0) {
             //NUL
-        }
-        else {
+        } else {
             $this->helper->logInfo("doCreate: ".__LINE__." order");
             $quote->save();
         }
@@ -463,13 +479,12 @@ class Orders extends AbstractModel
             
             $this->helper->logInfo("doCreate: Line ".__LINE__."");
             $newOrder = $this->cartManagementInterface->submit($quote);
-        }
-        else {
+        } else {
             // Magento < 2.1
             $newOrder = $this->quoteManagement->submit($quote);
         }
 
-        if ($newOrder->getEntityId()) {
+        if (is_object($newOrder) && $newOrder->getEntityId()) {
             // Save the marketplace order number
             $newOrder->setIncrementId($order->OrderId);
             
@@ -559,8 +574,7 @@ class Orders extends AbstractModel
                 'manage_stock' => 0,
                 'is_in_stock' => 1,
                 'qty' => (int)$item->Quantity
-            ]
-        );
+            ]);
 
         $newProduct = $this->productRepository->save($product);
         // -------- Now load the product fresh --------
@@ -776,7 +790,6 @@ class Orders extends AbstractModel
         }
         return $str;
     }
-    
     
     /**
      * Called from ChannelUnity to ask for the status of orders it thinks

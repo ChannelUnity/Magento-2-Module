@@ -135,9 +135,7 @@ class Tax extends \Magento\Tax\Model\Sales\Total\Quote\Tax
             
             if (!is_object($cuLineItem)) {
                 $this->helper->logInfo("Warning: No line tax details for ".$itemTaxDetails->getCode());
-            }
-            else {
-
+            } else {
                 $perItemTaxRequired = (float) $cuLineItem->Tax; // In the source currency
                 $qtyOfItem = (int) $cuLineItem->Quantity;
 

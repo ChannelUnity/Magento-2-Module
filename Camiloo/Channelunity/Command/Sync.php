@@ -91,27 +91,30 @@ class Sync extends Command
             
             // Get a block of products with SKU, qty, price
             $this->fullstockpricemessageAction();
-
-            // Get the URL of the store
-            $sourceUrl = $this->helper->getBaseUrl();
-
-            $xml = "<Products>
-                    <SourceURL>{$sourceUrl}</SourceURL>
-                    <StoreViewId>0</StoreViewId>
-                    <Data><![CDATA[ ".$this->buffer." ]]></Data>
-                    </Products>";
-
-            $this->helper->logInfo($xml);
-            if ($output) {
-                $output->writeln($xml);
-            }
             
-            // Send to ChannelUnity
-            $response = $this->helper->postToChannelUnity($xml, 'ProductDataLite');
+            if ($this->buffer) {
 
-            $this->helper->logInfo($response);
-            if ($output) {
-                $output->writeln($response);
+                // Get the URL of the store
+                $sourceUrl = $this->helper->getBaseUrl();
+
+                $xml = "<Products>
+                        <SourceURL>{$sourceUrl}</SourceURL>
+                        <StoreViewId>0</StoreViewId>
+                        <Data><![CDATA[ ".rtrim($this->buffer)." ]]></Data>
+                        </Products>";
+
+                $this->helper->logInfo($xml);
+                if ($output) {
+                    $output->writeln($xml);
+                }
+
+                // Send to ChannelUnity
+                $response = $this->helper->postToChannelUnity($xml, 'ProductDataLite');
+
+                $this->helper->logInfo($response);
+                if ($output) {
+                    $output->writeln($response);
+                }
             }
         } while ($this->lastSyncProd > 0);
         // Loop while more products to synchronise

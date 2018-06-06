@@ -60,11 +60,11 @@ class SaveProductObserver implements ObserverInterface
         $selected = $this->request->getParam('selected');
 
         if ($productsInRegistry) {
-            $this->helper->logInfo("Found Ids in registry:".print_r($productsInRegistry, true));
+            $this->helper->logInfo("Found Ids in registry");
             $productIds = $productsInRegistry;
             $this->registry->unregister('attribute_pids');
         } elseif ($selected) {
-            $this->helper->logInfo("Found Ids in request:".print_r($selected, true));
+            $this->helper->logInfo("Found Ids in request");
 
             $productInRequest = $this->request->getParam('product');
             $productIds = $selected;
@@ -77,12 +77,12 @@ class SaveProductObserver implements ObserverInterface
                 $productInRequest = $this->request->getParam('product');
                 $sku = $productInRequest['sku'];
                 $product = $this->productRepository->get($sku);
-                $this->helper->logInfo("Got product model from sku in request:".print_r($sku, true));
+                $this->helper->logInfo("Got product model from sku in request");
             }
 
             if (is_object($product)) {
                 $productIds = [$product->getId()];
-                $this->helper->logInfo("Got Ids from product model:".print_r($productIds, true));
+                $this->helper->logInfo("Got Ids from product model");
             }
         }
 

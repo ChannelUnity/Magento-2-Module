@@ -15,7 +15,9 @@ use Magento\Catalog\Model\Product;
 use Magento\CatalogInventory\Model\Stock\StockItemRepository;
 use Magento\Store\Model\StoreManagerInterface;
 use Magento\Framework\Model\ResourceModel\Iterator;
-use \Magento\Framework\Registry;
+use Magento\Framework\Registry;
+use Magento\Catalog\Model\ProductFactory;
+use Magento\CatalogInventory\Api\StockRegistryInterface;
 
 /**
  * Converts Magento product data into ChannelUnity formatted product data.
@@ -31,6 +33,8 @@ class Products extends AbstractModel
     private $upperLimit = 250;
     private $rangeNext = 0;
     private $buffer = "";
+    private $productFactory;
+    private $stockRegistry;
 
     public function __construct(
         Helper $helper,
@@ -38,7 +42,9 @@ class Products extends AbstractModel
         StockItemRepository $stockItemRepository,
         StoreManagerInterface $storeManager,
         Iterator $iterator,
-        Registry $registry
+        Registry $registry,
+        ProductFactory $productFactory,
+        StockRegistryInterface $stockRegistry
     ) {
         $this->helper = $helper;
         $this->stockItemRepository = $stockItemRepository;
@@ -46,6 +52,8 @@ class Products extends AbstractModel
         $this->storeManager = $storeManager;
         $this->iterator = $iterator;
         $this->registry = $registry;
+        $this->productFactory = $productFactory;
+        $this->stockRegistry = $stockRegistry;
     }
     
     /**
@@ -103,8 +111,9 @@ class Products extends AbstractModel
             $product = $productId;
         } else {
             // Product ID passed in, load product model
-            $product = $this->product->setStoreId($storeId)->load($productId);
+            $product = $this->productFactory->create()->setStoreId($storeId)->load($productId);
         }
+
         $skipProduct = $this->isProductGloballyDisabled($product->getId());
 
         if (!$skipProduct) {
@@ -135,18 +144,14 @@ class Products extends AbstractModel
             foreach ($stores as $storeView) {
                 $storeId = $storeView->getData('store_id');
 
-                //$this->helper->logInfo("isProductGloballyDisabled $storeId");
-
-                $product = $this->product->setStoreId($storeId)->load($productId);
+                $product = $this->productFactory->create()->setStoreId($storeId)->load($productId);
                 
                 $skipProduct = $this->skipProduct($product);
                 if (!$skipProduct) {
-                    //$this->helper->logInfo("isProductGloballyDisabled no");
                     return false;
                 }
             }
         }
-        //$this->helper->logInfo("isProductGloballyDisabled yes");
         return true;
     }
     
@@ -156,9 +161,18 @@ class Products extends AbstractModel
         $imageUrl = $this->getBaseImageForProduct($product);
         $qty = 0;
         try {
-            $stock = $this->stockItemRepository->get($product->getId());
+            if (version_compare($this->helper->getMagentoVersion(), '2.2.0') >= 0) {
+                $stock = $this->stockRegistry->getStockItem($product->getId());
+            }
+            else {
+                $stock = $this->stockItemRepository->get($product->getId());
+            }
+            
             $qty = $stock->getData('qty') - $reduceStockBy;
+
         } catch (\Exception $e) {
+            $this->helper->logError("Error generating product XML - ".$e->getMessage());
+            
             // Stock item may not exist (creating new product)
             // We will get the qty via the afterSave() interceptor
             $stock = null;
@@ -443,6 +457,8 @@ class Products extends AbstractModel
                         'name', 'description', 'sku', 'price', 'qty',
                         'stock_item', 'tier_price', '_cache_instance_products',
                         '_cache_instance_product_set_attributes',
+            '_cache_instance_used_attributes',
+            '_cache_instance_used_product_attributes',
                         'has_options', 'required_options', 'category_ids',
                         'item_id', 'product_id', 'stock_id',
                         'use_config_backorders',
@@ -455,7 +471,8 @@ class Products extends AbstractModel
                         'use_config_qty_increments',
                         'is_decimal_divided',
                         'is_qty_decimal',
-                        'downloadable_links'
+                        'downloadable_links',
+                        'options'
                     ])) {
                 continue;
             }

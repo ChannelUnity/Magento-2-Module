@@ -20,6 +20,7 @@ use \Magento\Framework\Event\ObserverInterface;
 use \Magento\Framework\Event\Observer;
 use \Magento\Store\Model\StoreManagerInterface;
 use \Magento\CatalogInventory\Model\Stock\StockItemRepository;
+use \Magento\CatalogInventory\Api\StockRegistryInterface;
 use \Camiloo\Channelunity\Model\Products;
 use \Camiloo\Channelunity\Model\Helper;
 use \Camiloo\Channelunity\Model\Orders;
@@ -30,6 +31,7 @@ class OrderPlacedObserver implements ObserverInterface
     private $productModel;
     private $storeManager;
     private $stockItemRepository;
+    private $stockRegistry;
     private $orderModel;
     
     public function __construct(
@@ -37,6 +39,7 @@ class OrderPlacedObserver implements ObserverInterface
         Products $product,
         StoreManagerInterface $storeManager,
         StockItemRepository $stockItemRepository,
+        StockRegistryInterface $stockRegistry,
         Orders $orders
     ) {
     
@@ -44,6 +47,7 @@ class OrderPlacedObserver implements ObserverInterface
         $this->productModel = $product;
         $this->storeManager = $storeManager;
         $this->stockItemRepository = $stockItemRepository;
+        $this->stockRegistry = $stockRegistry;
         $this->orderModel = $orders;
     }
 
@@ -69,15 +73,23 @@ class OrderPlacedObserver implements ObserverInterface
             
             foreach ($itemsOnOrder as $item) {
                 // Send updates for these products to ChannelUnity
-                
-                $productId = $item->getProduct()->getId();
-                
                 // The only thing that will have changed is the qty
                 // so may as well send a product data lite call
                 
+                $productId = $item->getProduct()->getId();
                 $psku = $item->getProduct()->getData('sku');
-                $stock = $this->stockItemRepository->get($productId);
-                $pqty = $stock->getData('qty');
+                
+                $this->helper->logInfo("OrderPlacedObserver. Product ID $productId SKU $psku");
+                
+                try {
+                    $stock = $this->stockItemRepository->get($productId);
+                    $pqty = $stock->getData('qty');
+                } catch (\Exception $e) {
+                    $this->helper->logInfo("OrderPlacedObserver error ".$e->getMessage());
+                    // Stock Item with id "****" does not exist
+                    $stock = $this->stockRegistry->getStockItem($productId);
+                    $pqty = $stock->getQty();
+                }
 
                 // Get the URL of the store
                 $sourceUrl = $this->helper->getBaseUrl();
@@ -88,11 +100,9 @@ class OrderPlacedObserver implements ObserverInterface
                         <Data><![CDATA[ $psku,$pqty, ]]></Data>
                         </Products>";
 
-                $this->helper->logInfo($xml);
                 // Send to ChannelUnity
                 $response = $this->helper->postToChannelUnity($xml, 'ProductDataLite');
 
-                $this->helper->logInfo($response);
             }
             
             // ------ Update order status too (will only have an

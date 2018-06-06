@@ -12,44 +12,55 @@ namespace Camiloo\Channelunity\Controller\Api;
 
 use Camiloo\Channelunity\Model\Products;
 use Camiloo\Channelunity\Model\Orders;
+use Camiloo\Channelunity\Model\Refunds;
 use Camiloo\Channelunity\Model\Stores;
 use Camiloo\Channelunity\Model\Helper;
 use Camiloo\Channelunity\Model\Categories;
+use Camiloo\Channelunity\Model\Customers;
 use Magento\Framework\App\Action\Context;
 use Magento\Framework\Controller\ResultFactory;
+use Magento\Framework\Registry;
 
 /**
  * Endpoint for the ChannelUnity module.
  * http://<URL>/channelunity/api/index
  *
  * This module is tested with the following versions of Magento 2:
- * 2.0.7, 2.1.7
+ * 2.0.7, 2.1.7, 2.2.3
  */
 class Index extends \Magento\Framework\App\Action\Action
 {
     private $helper;
     private $cuproducts = null;
     private $cuorders = null;
+    private $curefunds = null;
     private $custores = null;
     private $cucategories = null;
+    private $cucustomers = null;
     private $rawResultFactory = null;
+    private $registry = null;
 
     public function __construct(
         Context $context,
         Helper $helper,
         Products $cuproducts,
         Orders $cuorders,
+        Refunds $curefunds,
         Stores $custores,
-        Categories $cucategories
-        //        ResultFactory $rawResultFactory
+        Categories $cucategories,
+        Customers $cucustomers,
+        Registry $registry
     ) {
         parent::__construct($context);
         $this->helper = $helper;
         $this->cuproducts = $cuproducts;
         $this->cuorders = $cuorders;
+        $this->curefunds = $curefunds;
         $this->custores = $custores;
         $this->cucategories = $cucategories;
+        $this->cucustomers = $cucustomers;
         $this->rawResultFactory = $context->getResultFactory();
+        $this->registry = $registry;
     }
 
     /**
@@ -61,7 +72,7 @@ class Index extends \Magento\Framework\App\Action\Action
         error_reporting(E_ALL);
         $xml = $this->getRequest()->getPost('xml');
         $testmode = $this->getRequest()->getPost('testmode') == 'yes';
-
+        
         $result = $this->rawResultFactory->create(ResultFactory::TYPE_RAW);
         $result->setHeader('Content-Type', 'text/xml');
 
@@ -95,9 +106,8 @@ class Index extends \Magento\Framework\App\Action\Action
 
     private function doApiProcess($xmlRaw, $testMode = false)
     {
-
         $xml = simplexml_load_string($xmlRaw, 'SimpleXMLElement', LIBXML_NOCDATA);
-
+        
         if (!$testMode) {
             $payload = trim((string) $xml->Notification->Payload);
 
@@ -130,6 +140,16 @@ class Index extends \Magento\Framework\App\Action\Action
             case "OrderNotification":
                 $str .= $this->cuorders->doUpdate($request);
                 break;
+            
+            case "PartialRefundNotification":{
+                
+                $this->registry->unregister('cu_partial_refund');
+                $this->registry->register('cu_partial_refund', 'active');
+                $str .= $this->curefunds->partialRefund($request);
+                
+                $this->registry->unregister('cu_partial_refund');
+                break;
+            }
 
             case "ProductData":
                 $this->cuproducts->postAttributesToCU();
@@ -151,6 +171,21 @@ class Index extends \Magento\Framework\App\Action\Action
                 $str .= "<CategoryStatus>$categoryStatus</CategoryStatus>";
                 $str .= "<ProductAttributeStatus>$attributeStatus</ProductAttributeStatus>";
 
+                break;
+            
+            case "ValidateCustomerDetails":
+                $customerId = $this->cucustomers->validateCustomer($request->EmailAddress, $request->Password);
+                $str .= "<CustomerID>$customerId</CustomerID>";
+                break;
+            
+            case "CreateCustomerAccount":
+                $customerId = $this->cucustomers->createCustomer($request->EmailAddress, $request->Password, $request->FirstName, $request->LastName);
+                $str .= "<CustomerID>$customerId</CustomerID>";
+                break;
+            
+            case "ResetCustomerPassword":
+                $this->cucustomers->resetPassword($request->EmailAddress);
+                $str .= "<Status>OK</Status>";
                 break;
         }
 

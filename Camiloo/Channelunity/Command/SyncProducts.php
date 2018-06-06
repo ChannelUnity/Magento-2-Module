@@ -25,6 +25,7 @@ class SyncProducts extends Command
 {
     private $cuproducts;
     private $helper;
+    private $state;
     
     public function __construct(
         Helper $helper,
@@ -32,9 +33,9 @@ class SyncProducts extends Command
         State $state
     ) {
         parent::__construct();
-        $state->setAreaCode("admin");
         $this->helper = $helper;
         $this->cuproducts = $cuproducts;
+        $this->state = $state;
     }
 
     /**
@@ -52,6 +53,7 @@ class SyncProducts extends Command
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
+        $this->state->setAreaCode("global");
         $request = new \stdClass;
         $request->RangeFrom = 0;
         $request->StoreviewId = 0;
