@@ -50,6 +50,7 @@ use Magento\Framework\Api\SearchCriteriaBuilder;
 use Magento\Framework\DB\TransactionFactory;
 use Magento\Directory\Model\CurrencyFactory;
 use Magento\Catalog\Api\ProductRepositoryInterface;
+use Magento\Directory\Api\CountryInformationAcquirerInterface;
 
 class Orders extends AbstractModel
 {
@@ -77,6 +78,7 @@ class Orders extends AbstractModel
     private $productFactory;
     private $shippingRate;
     private $bIsInventoryProcessed;
+    private $countryInformationAcquirer;
 
     public function __construct(
         Helper $helper,
@@ -101,7 +103,8 @@ class Orders extends AbstractModel
         TransactionFactory $transactionFactory,
         CurrencyFactory $currencyFactory,
         ProductFactory $productFactory,
-        Rate $shippingRate
+        Rate $shippingRate,
+        CountryInformationAcquirerInterface $countryInformationAcquirer
     ) {
         $this->helper = $helper;
         $this->registry = $registry;
@@ -126,6 +129,7 @@ class Orders extends AbstractModel
         $this->currencyFactory = $currencyFactory;
         $this->productFactory = $productFactory;
         $this->shippingRate = $shippingRate;
+        $this->countryInformationAcquirer = $countryInformationAcquirer;
     }
 
     public function generateCuXmlForOrderStatus(\Magento\Sales\Model\Order $order)
@@ -338,6 +342,8 @@ class Orders extends AbstractModel
             $this->registry->unregister('cu_sequence-'.$itemSeq);
             $this->registry->register('cu_sequence-'.$itemSeq, $item);
             
+            $productPrice = $conversionRate != null && $conversionRate > 0 ? (float)$item->Price/$conversionRate : (float)$item->Price;
+            
             //TODO test $this->productFactory on 2.0.x
             
             $searchCriteria = $this->searchCriteriaBuilder->addFilter(
@@ -358,7 +364,7 @@ class Orders extends AbstractModel
                 // Check whether or not we want stub products
                 if ($this->helper->allowStubProducts()) {
                     $this->helper->logInfo("doCreate: Creating stub product now");
-                    $itemArray = [$this->createStubProduct($item)];
+                    $itemArray = [$this->createStubProduct($item, $productPrice)];
                 } else {
                     $this->helper->logInfo("doCreate: Stub products not allowed");
                     throw new LocalizedException(__("ProductNotFound"));
@@ -368,8 +374,9 @@ class Orders extends AbstractModel
             
             foreach ($itemArray as $product) {
                 $this->helper->logInfo("doCreate: Line ".__LINE__."");
-            
-                $product->setPrice($conversionRate != null && $conversionRate > 0 ? (float)$item->Price/$conversionRate : (float)$item->Price);
+                
+                $product->setPrice($productPrice);
+                $product->setSpecialPrice($productPrice);
                 $product->setName($item->Name);
                 $this->helper->logInfo("doCreate: Adding {$item->SKU} to quote");
                 $quote->addProduct($product, (int) $item->Quantity);
@@ -388,7 +395,7 @@ class Orders extends AbstractModel
         if ($address3 != '') {
             $address .= ", ".$address3;
         }
-
+        
         $shippingAddress = [
             'firstname' => (string) $firstNameS,
             'lastname' => (string) $lastNameS,
@@ -400,7 +407,9 @@ class Orders extends AbstractModel
             'telephone' => (string) $shippingInfo->PhoneNumber,
             'save_in_address_book' => 0
         ];
-        
+        $regionId = $this->getRegionId((string) $shippingInfo->Country, 
+                (string) $shippingInfo->State);
+
         $billingAddress = [
             'firstname' => (string) $firstNameB,
             'lastname' => (string) $lastNameB,
@@ -412,7 +421,13 @@ class Orders extends AbstractModel
             'telephone' => (string) $billingInfo->PhoneNumber,
             'save_in_address_book' => 0
         ];
-
+        
+        if (is_numeric($regionId)) {
+            // We found a region ID -- add it in
+            $shippingAddress['region_id'] = $regionId;
+            $billingAddress['region_id'] = $regionId;
+        }
+        
         $quote->getBillingAddress()->addData($billingAddress);
         $quote->getShippingAddress()->addData($shippingAddress);
         // Setting variables for the CU shipping class to use
@@ -552,7 +567,7 @@ class Orders extends AbstractModel
      * @param type $item
      * @return type
      */
-    private function createStubProduct($item)
+    private function createStubProduct($item, $productPrice)
     {
         // Products belong to websites, so let's get the current website ID
         $websiteId = $this->storeManager->getWebsite()->getWebsiteId();
@@ -568,7 +583,7 @@ class Orders extends AbstractModel
         $product->setVisibility(1);
         $product->setTaxClassId(0);
         $product->setTypeId('simple');
-        $product->setPrice((float)$item->Price);
+        $product->setPrice($productPrice);
         $product->setStockData([
                 'use_config_manage_stock' => 0,
                 'manage_stock' => 0,
@@ -837,4 +852,39 @@ class Orders extends AbstractModel
         $str .= "</ShipmentCheck>\n";
         return $str;
     }
+    
+    /**
+     * Find a region ID code based on a country and a state.
+     * If not found it will return the state name.
+     * 
+     * @param type $countryCode
+     * @param type $stateName
+     * @return type
+     */
+    private function getRegionId($countryCode, $stateName)
+    {
+        $data = [];
+
+        $countries = $this->countryInformationAcquirer->getCountriesInfo();
+
+        foreach ($countries as $country) {
+            if ($country->getTwoLetterAbbreviation() != $countryCode) {
+                continue;
+            }
+            
+            if ($availableRegions = $country->getAvailableRegions()) {
+                foreach ($availableRegions as $region) {
+                    
+                    $this->helper->logInfo("getRegionId: ".$region->getName()." / ".$region->getId());
+                    
+                    if (strtolower($region->getName()) == strtolower($stateName)) {
+                        return $region->getId();
+                    }
+                }
+            }
+        }
+        $this->helper->logInfo("getRegionId: No region ID found");
+        return $stateName;
+    }
+
 }

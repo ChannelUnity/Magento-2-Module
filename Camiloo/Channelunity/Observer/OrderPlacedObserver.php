@@ -75,9 +75,13 @@ class OrderPlacedObserver implements ObserverInterface
                 // Send updates for these products to ChannelUnity
                 // The only thing that will have changed is the qty
                 // so may as well send a product data lite call
+                $product = $item->getProduct();
+                if (!$product) {
+                    continue;
+                }
                 
-                $productId = $item->getProduct()->getId();
-                $psku = $item->getProduct()->getData('sku');
+                $productId = $product->getId();
+                $psku = $product->getData('sku');
                 
                 $this->helper->logInfo("OrderPlacedObserver. Product ID $productId SKU $psku");
                 
