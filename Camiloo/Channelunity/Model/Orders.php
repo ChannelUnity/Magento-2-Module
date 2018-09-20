@@ -389,17 +389,20 @@ class Orders extends AbstractModel
         $address2 = (string) $shippingInfo->Address2;
         $address3 = (string) $shippingInfo->Address3;
         
+        $addressArray = array();
+        $addressArray[] = $address;
+        
         if ($address2 != '') {
-            $address .= ", ".$address2;
+            $addressArray[] = $address2;
         }
         if ($address3 != '') {
-            $address .= ", ".$address3;
+            $addressArray[] = $address3;
         }
         
         $shippingAddress = [
             'firstname' => (string) $firstNameS,
             'lastname' => (string) $lastNameS,
-            'street' => $address,
+            'street' => $addressArray,
             'city' => (string) $shippingInfo->City,
             'country_id' => (string) $shippingInfo->Country,
             'region' => (string) $shippingInfo->State,
@@ -413,7 +416,7 @@ class Orders extends AbstractModel
         $billingAddress = [
             'firstname' => (string) $firstNameB,
             'lastname' => (string) $lastNameB,
-            'street' => $address,
+            'street' => $addressArray,
             'city' => (string) $shippingInfo->City,
             'country_id' => (string) $shippingInfo->Country,
             'region' => (string) $shippingInfo->State,
