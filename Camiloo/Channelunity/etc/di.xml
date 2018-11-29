@@ -9,6 +9,9 @@
     <type name="\Magento\CatalogInventory\Model\Stock\Item">
         <plugin name="StockItemSave" type="Camiloo\Channelunity\Plugin\StockItemSavePlugin" sortOrder="1" />
     </type>
+    <type name="\Magento\CatalogInventory\Model\ResourceModel\Stock\Status">
+        <plugin name="StockStatus" type="Camiloo\Channelunity\Plugin\StockStatusPlugin" sortOrder="1" />
+    </type>
 
     <type name="Magento\Framework\Console\CommandList">
         <arguments>

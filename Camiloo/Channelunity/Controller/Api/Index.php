@@ -187,6 +187,11 @@ class Index extends \Magento\Framework\App\Action\Action
                 $this->cucustomers->resetPassword($request->EmailAddress);
                 $str .= "<Status>OK</Status>";
                 break;
+            
+            case "GetCustomerOrders":
+                $str .= $this->cucustomers->getOrdersByCustomerAsXML($request->CustomerID);
+                $str .= "<Status>OK</Status>";
+                break;
         }
 
         $str .= '  </ChannelUnity>';

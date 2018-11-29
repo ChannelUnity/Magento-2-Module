@@ -99,11 +99,31 @@ class Customers extends AbstractModel
      */
     public function getOrdersByCustomer($customerId)
     {
+        // Limit to 10 as a default
         $orders = $this->orderCollectionFactory->create()
                 ->addFieldToSelect('*')
                 ->addFieldToFilter('customer_id', $customerId)
-                ->setOrder('created_at', 'desc');
+                ->setOrder('created_at', 'desc')
+                ->limit(10);
         return $orders;
+    }
+    
+    public function getOrdersByCustomerAsXML($customerId)
+    {
+        $orders = $this->getOrdersByCustomer($customerId);
+        $xml = "<Orders>\n";
+        
+        foreach ($orders as $order) {
+            $xml .= "  <Order>\n";
+            $keys = array_keys($order->getData());
+            
+            foreach ($keys as $key) {
+                $xml .= "    <$key></$key>\n";
+            }
+            $xml .= "  </Order>\n";
+        }
+        $xml .= "</Orders>\n";
+        return $xml;
     }
 
     /**

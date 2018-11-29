@@ -51,6 +51,8 @@ use Magento\Framework\DB\TransactionFactory;
 use Magento\Directory\Model\CurrencyFactory;
 use Magento\Catalog\Api\ProductRepositoryInterface;
 use Magento\Directory\Api\CountryInformationAcquirerInterface;
+use Magento\Directory\Helper\Data;
+use Magento\GiftMessage\Model\MessageFactory;
 
 class Orders extends AbstractModel
 {
@@ -79,6 +81,8 @@ class Orders extends AbstractModel
     private $shippingRate;
     private $bIsInventoryProcessed;
     private $countryInformationAcquirer;
+    private $directoryHelper;
+    private $giftMessageFactory;
 
     public function __construct(
         Helper $helper,
@@ -104,7 +108,9 @@ class Orders extends AbstractModel
         CurrencyFactory $currencyFactory,
         ProductFactory $productFactory,
         Rate $shippingRate,
-        CountryInformationAcquirerInterface $countryInformationAcquirer
+        CountryInformationAcquirerInterface $countryInformationAcquirer,
+        Data $directoryHelper,
+        MessageFactory $giftMessageFactory
     ) {
         $this->helper = $helper;
         $this->registry = $registry;
@@ -130,6 +136,8 @@ class Orders extends AbstractModel
         $this->productFactory = $productFactory;
         $this->shippingRate = $shippingRate;
         $this->countryInformationAcquirer = $countryInformationAcquirer;
+        $this->directoryHelper = $directoryHelper;
+        $this->giftMessageFactory = $giftMessageFactory;
     }
 
     public function generateCuXmlForOrderStatus(\Magento\Sales\Model\Order $order)
@@ -284,8 +292,8 @@ class Orders extends AbstractModel
             $quote = $this->quote->create();
         }
         $quote->setStore($store); // Set store for which we are creating the order
-        
-        $customer = $this->customerRepository->getById($customer->getEntityId());
+        $customerEntityId = $customer->getEntityId();
+        $customer = $this->customerRepository->getById($customerEntityId);
         $quote->setCurrency();
         $quote->assignCustomer($customer);
         
@@ -399,31 +407,38 @@ class Orders extends AbstractModel
             $addressArray[] = $address3;
         }
         
+        // If the state/region is required but none is given,
+        // put something in.
+        $state = (string) $shippingInfo->State;
+        $countryId = $this->countryCodeToId((string) $shippingInfo->Country);
+        if (!$state && $this->isRegionRequired($countryId)) {
+            $state = "N/A";
+        }
+        
         $shippingAddress = [
             'firstname' => (string) $firstNameS,
             'lastname' => (string) $lastNameS,
             'street' => $addressArray,
             'city' => (string) $shippingInfo->City,
             'country_id' => (string) $shippingInfo->Country,
-            'region' => (string) $shippingInfo->State,
+            'region' => $state,
             'postcode' => (string) $shippingInfo->PostalCode,
             'telephone' => (string) $shippingInfo->PhoneNumber,
             'save_in_address_book' => 0
         ];
-        $regionId = $this->getRegionId((string) $shippingInfo->Country, 
-                (string) $shippingInfo->State);
-
         $billingAddress = [
             'firstname' => (string) $firstNameB,
             'lastname' => (string) $lastNameB,
             'street' => $addressArray,
             'city' => (string) $shippingInfo->City,
             'country_id' => (string) $shippingInfo->Country,
-            'region' => (string) $shippingInfo->State,
+            'region' => $state,
             'postcode' => (string) $shippingInfo->PostalCode,
             'telephone' => (string) $billingInfo->PhoneNumber,
             'save_in_address_book' => 0
         ];
+        
+        $regionId = $this->getRegionId((string) $shippingInfo->Country, $state);
         
         if (is_numeric($regionId)) {
             // We found a region ID -- add it in
@@ -503,15 +518,32 @@ class Orders extends AbstractModel
         }
 
         if (is_object($newOrder) && $newOrder->getEntityId()) {
+            $entityId = $newOrder->getEntityId();
             // Save the marketplace order number
             $newOrder->setIncrementId($order->OrderId);
             
             $this->createInvoice($newOrder);
             
+            //////////////////////////////////////////////////////////////////
+            
+            if (isset($order->ShippingInfo->GiftMessage)) {
+                $this->helper->logInfo("Gift message is present");
+                
+                try {
+                    $giftMessage = $this->giftMessageFactory->create();
+                    $giftMessage->setMessage((string) $order->ShippingInfo->GiftMessage);
+                    $giftMessage->save();
+                    
+                    $newOrder->setData('gift_message_id', $giftMessage->getGiftMessageId());
+                } catch (\Exception $e) {
+                    $msg = $e->getMessage();
+                    $str .= "<Info><![CDATA[Gift message error: $msg]]></Info>\n";
+                }
+                $this->helper->logInfo("Gift message complete");
+            }
+            //////////////////////////////////////////////////////////////////
             // Set status of the created Magento order
             $this->doSingleOrder($order, $newOrder, false);
-            
-            $entityId = $newOrder->getEntityId();
             
             $str .= "<Info>We created order ID $entityId</Info>\n";
             $str .= "<Imported>$order->OrderId</Imported>\n";
@@ -649,7 +681,7 @@ class Orders extends AbstractModel
     {
         // Update order status
         $ordStatus = $this->CUOrderStatusToMagentoStatus((string) $singleOrder->OrderStatus);
-
+        
         try {
             $newOrder->setData('state', $ordStatus);
             $newOrder->setData('status', $ordStatus);
@@ -866,8 +898,9 @@ class Orders extends AbstractModel
      */
     private function getRegionId($countryCode, $stateName)
     {
-        $data = [];
-
+        $firstRegionId = $stateName;
+        $this->helper->logInfo("getRegionId: ".$countryCode." / ".$stateName);
+        
         $countries = $this->countryInformationAcquirer->getCountriesInfo();
 
         foreach ($countries as $country) {
@@ -875,8 +908,22 @@ class Orders extends AbstractModel
                 continue;
             }
             
+            $countryId = $country->getId();
+            $this->helper->logInfo("Country ID: $countryId");
+
+            // See if region is required
+            $bRegionRequired = $this->isRegionRequired($countryId);
+            if (!$bRegionRequired) {
+                $this->helper->logInfo("getRegionId: No region required");
+                
+                return "N/A";
+            }
+            
             if ($availableRegions = $country->getAvailableRegions()) {
                 foreach ($availableRegions as $region) {
+                    if (!is_numeric($firstRegionId)) {
+                        $firstRegionId = $region->getId();
+                    }
                     
                     $this->helper->logInfo("getRegionId: ".$region->getName()." / ".$region->getId());
                     
@@ -887,7 +934,30 @@ class Orders extends AbstractModel
             }
         }
         $this->helper->logInfo("getRegionId: No region ID found");
-        return $stateName;
+        return $firstRegionId;
+    }
+    
+    private function countryCodeToId($countryCode) {
+        $countryId = 0;
+        $countries = $this->countryInformationAcquirer->getCountriesInfo();
+        foreach ($countries as $country) {
+            if ($country->getTwoLetterAbbreviation() != $countryCode) {
+                continue;
+            }
+            
+            $countryId = $country->getId();
+            break;
+        }
+        return $countryId;
     }
 
+    /**
+     * Returns true if state or region is required for the given country.
+     * Can be set as such in the Magento configuration settings.
+     * @param type $countryId
+     * @return type
+     */
+    private function isRegionRequired($countryId) {
+        return is_object($this->directoryHelper) && $this->directoryHelper->isRegionRequired($countryId);
+    }
 }
