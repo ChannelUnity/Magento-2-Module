@@ -147,6 +147,7 @@ class Sync extends Command
                 )
                 ->where('t1.product_id > ?', $this->lastSyncProd)
                 ->where('t3.attribute_id = ?', $attributeId)
+                ->where('t3.store_id = ?', 0)
                 ->order('t1.product_id')
                 ->limit(1000);
 
