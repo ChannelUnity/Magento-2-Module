@@ -103,6 +103,11 @@ class Customrate extends AbstractCarrier implements CarrierInterface
             $method->setCarrier($this->getCarrierCode());
             $method->setCarrierTitle($this->getConfigData('title'));
             
+            $cuPrimeCheck = $this->registry->registry('cu_prime_order');
+            if ($cuPrimeCheck == 1) {
+                $method->setCarrierTitle('Prime Shipping');
+            }
+            
             /**
              * Displayed as shipping method under Carrier
              */

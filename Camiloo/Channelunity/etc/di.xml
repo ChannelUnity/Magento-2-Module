@@ -19,6 +19,7 @@
                 <item name="sync_stock_and_price_command" xsi:type="object">Camiloo\Channelunity\Command\Sync</item>
                 <item name="sync_products_command" xsi:type="object">Camiloo\Channelunity\Command\SyncProducts</item>
                 <item name="delete_orders_command" xsi:type="object">Camiloo\Channelunity\Command\DeleteOrders</item>
+                <item name="sync_bulk_command" xsi:type="object">Camiloo\Channelunity\Command\BulkProductSync</item>
             </argument>
         </arguments>
     </type>

@@ -242,6 +242,7 @@ class Orders extends AbstractModel
      * @param type $order
      * @return string
      * @throws LocalizedException
+     * @SuppressWarnings(PHPMD.CyclomaticComplexity)
      */
     public function doCreate($dataArray, $order)
     {
@@ -477,7 +478,7 @@ class Orders extends AbstractModel
         $quote->setInventoryProcessed($this->bIsInventoryProcessed);
         
         if (version_compare($this->helper->getMagentoVersion(), '2.1.0') >= 0) {
-            //NUL
+            $this->helper->logInfo("doCreate: ".__LINE__." order");
         } else {
             $this->helper->logInfo("doCreate: ".__LINE__." order");
             $quote->save();
@@ -750,6 +751,12 @@ class Orders extends AbstractModel
             
             $bOrderExisted = $orderList->getSize() > 0;
             $this->helper->logInfo("Does order already exist? $bOrderExisted");
+            
+            $orderIsPrime = isset($order->OrderFlags) && strpos((string) $order->OrderFlags, 'AMAZON_PRIME') !== false;
+            if ($orderIsPrime) {
+                $this->registry->unregister('cu_prime_order');
+                $this->registry->register('cu_prime_order', 1);
+            }
             
             $orderIsFba = isset($order->OrderFlags) && strpos((string) $order->OrderFlags, 'AMAZON_FBA') !== false;
             $ignoreQty = $this->helper->getConfig('channelunityint/generalsettings/ignorefbaqty');

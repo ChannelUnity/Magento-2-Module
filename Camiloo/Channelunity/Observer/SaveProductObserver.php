@@ -53,16 +53,17 @@ class SaveProductObserver implements ObserverInterface
     {
         $this->helper->logInfo("Observer called: Save Product");
 
-        //If it's a mass attribute update, we stored the product IDs in the registry
+        // If it's a mass attribute update, we stored the product IDs in the registry
         $productsInRegistry = $this->registry->registry('attribute_pids');
         
         // If it's a mass enable/disable, we can get the ids from $_REQUEST
         $selected = $this->request->getParam('selected');
 
         if ($productsInRegistry) {
-            $this->helper->logInfo("Found Ids in registry");
-            $productIds = $productsInRegistry;
+            $this->helper->logInfo("Found Ids in registry, defer saving until later");
+            //$productIds = $productsInRegistry;
             $this->registry->unregister('attribute_pids');
+            $productIds = [];
         } elseif ($selected) {
             $this->helper->logInfo("Found Ids in request");
 

@@ -10,5 +10,8 @@
         <job name="stock_price_daily" instance="Camiloo\Channelunity\Command\Sync" method="everyDay">
             <schedule>0 4 * * *</schedule>
         </job>
+        <job name="product_bulk_sync" instance="Camiloo\Channelunity\Command\BulkProductSync" method="every5Minutes">
+            <schedule>*/5 * * * *</schedule>
+        </job>
     </group>
 </config>
