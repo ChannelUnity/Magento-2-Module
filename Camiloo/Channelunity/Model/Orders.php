@@ -592,7 +592,7 @@ class Orders extends AbstractModel
         } catch (\Exception $e) {
             $order->addStatusHistoryComment('Exception message: '.$e->getMessage(), false);
             $order->save();
-            return null;
+            throw new LocalizedException(__("Invoice create error"));
         }
 
         return $invoice;
