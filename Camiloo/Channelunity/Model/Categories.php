@@ -119,12 +119,11 @@ class Categories extends AbstractModel
                         $rootCatId,
                         $storeViewId
                     );
+                    $result = $this->helper->postToChannelUnity($messageToSend, "CategoryData");
+                    $xml = simplexml_load_string($result, 'SimpleXMLElement', LIBXML_NOCDATA);
                 }
             }
         }
-
-        $result = $this->helper->postToChannelUnity($messageToSend, "CategoryData");
-        $xml = simplexml_load_string($result, 'SimpleXMLElement', LIBXML_NOCDATA);
 
         if (isset($xml->Status)) {
             return $xml->Status;

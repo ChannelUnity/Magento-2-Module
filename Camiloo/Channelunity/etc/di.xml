@@ -12,7 +12,9 @@
     <type name="\Magento\CatalogInventory\Model\ResourceModel\Stock\Status">
         <plugin name="StockStatus" type="Camiloo\Channelunity\Plugin\StockStatusPlugin" sortOrder="1" />
     </type>
-
+    <type name="\Magento\Framework\App\Request\CsrfValidator">
+        <plugin name="csrfValidatorSkip" type="Camiloo\Channelunity\Plugin\CsrfValidatorSkipPlugin" />
+    </type>
     <type name="Magento\Framework\Console\CommandList">
         <arguments>
             <argument name="commands" xsi:type="array">
