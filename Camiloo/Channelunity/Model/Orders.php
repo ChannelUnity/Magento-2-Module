@@ -53,6 +53,7 @@ use Magento\Catalog\Api\ProductRepositoryInterface;
 use Magento\Directory\Api\CountryInformationAcquirerInterface;
 use Magento\Directory\Helper\Data;
 use Magento\GiftMessage\Model\MessageFactory;
+use Magento\Framework\DataObjectFactory;
 
 class Orders extends AbstractModel
 {
@@ -83,6 +84,7 @@ class Orders extends AbstractModel
     private $countryInformationAcquirer;
     private $directoryHelper;
     private $giftMessageFactory;
+    private $dataObjectFactory;
 
     public function __construct(
         Helper $helper,
@@ -110,7 +112,8 @@ class Orders extends AbstractModel
         Rate $shippingRate,
         CountryInformationAcquirerInterface $countryInformationAcquirer,
         Data $directoryHelper,
-        MessageFactory $giftMessageFactory
+        MessageFactory $giftMessageFactory,
+        DataObjectFactory $dataObjectFactory
     ) {
         $this->helper = $helper;
         $this->registry = $registry;
@@ -138,6 +141,7 @@ class Orders extends AbstractModel
         $this->countryInformationAcquirer = $countryInformationAcquirer;
         $this->directoryHelper = $directoryHelper;
         $this->giftMessageFactory = $giftMessageFactory;
+        $this->dataObjectFactory = $dataObjectFactory;
     }
 
     public function generateCuXmlForOrderStatus(\Magento\Sales\Model\Order $order)
@@ -193,8 +197,7 @@ class Orders extends AbstractModel
     {
         $orderXml = $this->generateCuXmlForOrderStatus($order);
 
-        if (!empty($orderXml) && $order->getState() == 'complete')
-        {
+        if (!empty($orderXml) && $order->getState() == 'complete') {
             $orderXml .= "<ShipmentDate>" . date("c") . "</ShipmentDate>\n";
             $orderXml .= "<CarrierName><![CDATA[$carrierName]]></CarrierName>\n";
             $orderXml .= "<ShipmentMethod><![CDATA[$shipMethod]]></ShipmentMethod>\n";
@@ -350,14 +353,21 @@ class Orders extends AbstractModel
             $this->helper->logInfo("doCreate: Line ".__LINE__."");
             $this->registry->unregister('cu_sequence-'.$itemSeq);
             $this->registry->register('cu_sequence-'.$itemSeq, $item);
-            
+            //
             $productPrice = $conversionRate != null && $conversionRate > 0 ? (float)$item->Price/$conversionRate : (float)$item->Price;
             
-            //TODO test $this->productFactory on 2.0.x
+            // If the product is a bundled product, need to do some extra setup
+            $skuToSearch = (string) $item->SKU;
+            $bundleSKUComponents = array();
+            if (strpos($skuToSearch, '^') !== false) {
+                // We have a bundle product SKU
+                $bundleSKUComponents = explode('^', $skuToSearch);
+                $skuToSearch = $bundleSKUComponents[0];
+            }
             
             $searchCriteria = $this->searchCriteriaBuilder->addFilter(
                 (string) $dataArray->SkuAttribute,
-                (string) $item->SKU,
+                $skuToSearch,
                 'eq'
             )->create();
             
@@ -387,8 +397,69 @@ class Orders extends AbstractModel
                 $product->setPrice($productPrice);
                 $product->setSpecialPrice($productPrice);
                 $product->setName($item->Name);
+                
+                $productParameters = $this->dataObjectFactory->create();
+                $productParameters->setData('product', $product->getId());
+                $productParameters->setData('qty', (int) $item->Quantity);
+                
+                if ($bundleSKUComponents) {
+                    $this->helper->logInfo("Bundle product $skuToSearch");
+                    // Add in our bundle options structure
+                    
+                    $productsArray = [];
+                    $optionIdToPosition = [];
+                    
+                    $productTypeObj = $product->getTypeInstance(true);
+        
+                    $selectionCollection = $productTypeObj
+                        ->getSelectionsCollection(
+                            $productTypeObj->getOptionsIds($product),
+                            $product
+                        );
+        
+                    foreach ($selectionCollection as $pselection) {
+
+                        if (array_key_exists($pselection->getOptionId(), $optionIdToPosition)) {
+                            $position = $optionIdToPosition[$pselection->getOptionId()];
+                        }
+                        else {
+                            $position = count($optionIdToPosition)+1;
+                            $optionIdToPosition[$pselection->getOptionId()] = $position;
+                        }
+                        $selectionArray = [];
+                        $selectionArray['product_name'] = $pselection->getName();
+                        $selectionArray['product_price'] = $pselection->getPrice();
+                        $selectionArray['product_qty'] = $pselection->getSelectionQty();
+                        $selectionArray['product_id'] = $pselection->getProductId();
+                        $selectionArray['product_sku'] = $pselection->getSku();
+                        
+                        $productsArray[$pselection->getOptionId()][$pselection->getSelectionId()] = $selectionArray;
+                    }
+                    $this->helper->logInfo(var_export($productsArray, true));
+                    
+                    $bundleOptions = [];
+                    $optionPosition = 1;
+                    foreach ($optionIdToPosition as $optionId => $position) {
+                        $skuAtPosition = $bundleSKUComponents[$position];
+                        
+                        foreach ($productsArray[$optionId] as $selectionId => $selectionArray) {
+                        
+                            // Find the selection ID that we need...
+                            if ($skuAtPosition == $selectionArray['product_sku']) {
+                                $bundleOptions[$optionId] = $selectionId;
+                                $optionPosition++;
+                                $this->helper->logInfo("Adding option and selection ID: $optionId -> $selectionId");
+
+                                break;
+                            }
+                        }
+                    }
+
+
+                    $productParameters->setData('bundle_option', $bundleOptions);
+                }
                 $this->helper->logInfo("doCreate: Adding {$item->SKU} to quote");
-                $quote->addProduct($product, (int) $item->Quantity);
+                $quote->addProduct($product, $productParameters);
                 $itemSeq++;
                 break; // There should only be 1 result anyway
             }
@@ -398,7 +469,7 @@ class Orders extends AbstractModel
         $address2 = (string) $shippingInfo->Address2;
         $address3 = (string) $shippingInfo->Address3;
         
-        $addressArray = array();
+        $addressArray = [];
         $addressArray[] = $address;
         
         if ($address2 != '') {
@@ -898,14 +969,14 @@ class Orders extends AbstractModel
     /**
      * Find a region ID code based on a country and a state.
      * If not found it will return the state name.
-     * 
+     *
      * @param type $countryCode
      * @param type $stateName
      * @return type
      */
     private function getRegionId($countryCode, $stateName)
     {
-        $firstRegionId = $stateName;
+        $firstRegionId = 'N/A';
         $this->helper->logInfo("getRegionId: ".$countryCode." / ".$stateName);
         
         $countries = $this->countryInformationAcquirer->getCountriesInfo();
@@ -939,12 +1010,14 @@ class Orders extends AbstractModel
                     }
                 }
             }
+            break;
         }
         $this->helper->logInfo("getRegionId: No region ID found");
         return $firstRegionId;
     }
     
-    private function countryCodeToId($countryCode) {
+    private function countryCodeToId($countryCode)
+    {
         $countryId = 0;
         $countries = $this->countryInformationAcquirer->getCountriesInfo();
         foreach ($countries as $country) {
@@ -964,7 +1037,8 @@ class Orders extends AbstractModel
      * @param type $countryId
      * @return type
      */
-    private function isRegionRequired($countryId) {
+    private function isRegionRequired($countryId)
+    {
         return is_object($this->directoryHelper) && $this->directoryHelper->isRegionRequired($countryId);
     }
 }

@@ -106,7 +106,6 @@ class OrderPlacedObserver implements ObserverInterface
 
                 // Send to ChannelUnity
                 $response = $this->helper->postToChannelUnity($xml, 'ProductDataLite');
-
             }
             
             // ------ Update order status too (will only have an

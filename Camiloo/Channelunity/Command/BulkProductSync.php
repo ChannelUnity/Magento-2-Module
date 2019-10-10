@@ -75,15 +75,15 @@ class BulkProductSync extends Command
     }
     
     //======================= Private methods =================================//
-    private function updateBatch($output = null) {
+    private function updateBatch($output = null)
+    {
         try {
             $this->state->setAreaCode("global");
-        }
-        catch (\Exception $e) {
+        } catch (\Exception $e) {
         }
         $startTime = time();
         
-        // If a bulk edit recently happened, we'll have stored some product IDs 
+        // If a bulk edit recently happened, we'll have stored some product IDs
         $productUpdatesTable = $this->resource->getTableName('product_updates');
         $connection = $this->resource->getConnection(\Magento\Framework\App\ResourceConnection::DEFAULT_CONNECTION);
         $select = $connection->select()
@@ -144,11 +144,12 @@ class BulkProductSync extends Command
     /**
      * Logs an activity message and prints to the screen if being run as a
      * command.
-     * 
+     *
      * @param type $str
      * @param type $output
      */
-    private function printMessage($str, $output) {
+    private function printMessage($str, $output)
+    {
         $this->helper->logInfo($str);
         if ($output) {
             $output->writeln($str);

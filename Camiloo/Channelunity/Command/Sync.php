@@ -93,7 +93,6 @@ class Sync extends Command
             $this->fullstockpricemessageAction();
             
             if ($this->buffer) {
-
                 // Get the URL of the store
                 $sourceUrl = $this->helper->getBaseUrl();
 

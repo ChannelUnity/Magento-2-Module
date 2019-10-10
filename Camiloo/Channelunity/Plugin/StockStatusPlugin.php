@@ -6,7 +6,7 @@ use \Camiloo\Channelunity\Model\Helper;
 
 /**
  * There is a setting in Magento (Configuration -> Catalog -> Inventory)
- * called "Display Out of Stock Products" which filters out Out of Stock 
+ * called "Display Out of Stock Products" which filters out Out of Stock
  * products. This was also affecting this plugin. Therefore we override
  * the setting to always be false (i.e. include both in and out of stock
  * products).
@@ -31,5 +31,4 @@ class StockStatusPlugin
     {
         return $proceed($collection, false);
     }
-
 }

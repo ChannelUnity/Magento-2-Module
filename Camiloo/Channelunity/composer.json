@@ -1,13 +1,13 @@
 {
     "name": "channelunity/channelunity",
-    "description": "ChannelUnity integrates your Magento 2 store with marketplace websites such as Amazon, eBay, Etsy, Fruugo, Tesco, Newegg, Wayfair, Cleverboxes and more.",
+    "description": "ChannelUnity integrates your Magento 2 store with marketplace websites such as Amazon, eBay, Etsy, Fruugo, Newegg, Wayfair, Walmart and more.",
     "type": "magento2-module",
-    "version": "1.0.2",
+    "version": "1.0.4",
     "license": "OSL-3.0",
-    "keywords": ["marketplace", "amazon", "ebay", "etsy", "fruugo", "tesco", "newegg", "wayfair", "cleverboxes", "synchromatic"],
+    "keywords": ["marketplace", "amazon", "ebay", "etsy", "fruugo", "newegg", "wayfair", "walmart", "synchromatic"],
     "homepage": "https://www.channelunity.com",
     "require": {
-        "php": "~5.5.0|~5.6.0|~7.0.0|~7.1.0|~7.2.0"
+        "php": "~5.5.0|~5.6.0|~7.0.0|~7.1.0|~7.2.0|~7.3.0"
     },
     "autoload": {
         "psr-4": {

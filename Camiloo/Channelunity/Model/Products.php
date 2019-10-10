@@ -35,6 +35,7 @@ class Products extends AbstractModel
     private $buffer = "";
     private $productFactory;
     private $stockRegistry;
+    private $currentStore;
 
     public function __construct(
         Helper $helper,
@@ -105,14 +106,13 @@ class Products extends AbstractModel
     public function generateCuXmlForSingleProduct($productId, $storeId, $reduceStockBy = 0)
     {
         $productXml = "";
-
+        $this->currentStore = $storeId;
         // Maybe the product model is passed in directly
         if (is_object($productId)) {
-            $product = $productId;
-        } else {
-            // Product ID passed in, load product model
-            $product = $this->productFactory->create()->setStoreId($storeId)->load($productId);
+            $productId = $productId->getId();
         }
+        
+        $product = $this->productFactory->create()->setStoreId($storeId)->load($productId);
 
         $skipProduct = $this->isProductGloballyDisabled($product->getId());
 
@@ -163,13 +163,11 @@ class Products extends AbstractModel
         try {
             if (version_compare($this->helper->getMagentoVersion(), '2.2.0') >= 0) {
                 $stock = $this->stockRegistry->getStockItem($product->getId());
-            }
-            else {
+            } else {
                 $stock = $this->stockItemRepository->get($product->getId());
             }
             
             $qty = $stock->getData('qty') - $reduceStockBy;
-
         } catch (\Exception $e) {
             $this->helper->logError("Error generating product XML - ".$e->getMessage());
             
@@ -326,7 +324,7 @@ class Products extends AbstractModel
             $collectionOfProduct->getSelect()->limit($this->upperLimit);
 
             // Make sure we get all data that we can
-            $products = $collectionOfProduct->addAttributeToSelect('*')->load();
+            $products = $collectionOfProduct->setFlag('has_stock_status_filter', true)->addAttributeToSelect('*')->load();
 
             foreach ($products as $p) {
                 // Save the ID for when we do the next batch
@@ -424,6 +422,85 @@ class Products extends AbstractModel
         }
         return $imageUrl;
     }
+    
+    private function getProductAttributeData($product) {
+        
+        $attributeData = $product->getData();
+        
+        $customAttributes = $product->getCustomAttributes(); 
+        foreach ($customAttributes as $attribute) {
+            if (!isset($attributeData[$attribute->getAttributeCode()]) && false) {
+                $attribute->setStoreId($this->currentStore);
+                $attributeData[$attribute->getAttributeCode()] = $attribute->getvalue();
+                //$product->getResource()->getAttribute($attribute->getAttributeCode())->getFrontend()->getValue($product); 
+            }
+        }
+        
+        return $attributeData;
+    }
+    
+    /**
+     * Returns bundle items information for the given product.
+     * @param type $product
+     */
+    private function getProductBundleItems($product) {
+        $productsArray = [];
+        $qtyInBundle = [];
+        $optionIdToPosition = [];
+        
+        $selectionCollection = $product->getTypeInstance(true)
+	        ->getSelectionsCollection(
+	            $product->getTypeInstance(true)->getOptionsIds($product),
+	            $product
+	        );
+        
+        foreach ($selectionCollection as $pselection) {
+            
+            if (array_key_exists($pselection->getOptionId(), $optionIdToPosition)) {
+                $position = $optionIdToPosition[$pselection->getOptionId()];
+            }
+            else {
+                $position = count($optionIdToPosition)+1;
+                $optionIdToPosition[$pselection->getOptionId()] = $position;
+            }
+            $selectionArray = [];
+            $selectionArray['product_name'] = $pselection->getName();
+            $selectionArray['product_price'] = $pselection->getPrice();
+            $selectionArray['product_qty'] = $pselection->getSelectionQty();
+            $selectionArray['product_id'] = $pselection->getProductId();
+            $selectionArray['product_sku'] = $pselection->getSku();
+            $qtyInBundle[$position][$pselection->getSku()] = (int)$pselection->getSelectionQty();
+            $productsArray[$pselection->getOptionId()][$pselection->getSelectionId()] = $selectionArray;
+        }
+        $this->helper->logInfo(var_export($productsArray, true));
+        $productsArray2 = [];
+        
+        // Generate all Bundle SKUs starting with the parent
+        $currentSKU = $product->getSku();
+        $this->combineBundleSKU($currentSKU, $productsArray, $productsArray2);
+        
+        return array($productsArray2, $qtyInBundle);
+    }
+    
+    /**
+     * Generates all the possible SKU combinations for a Bundle product.
+     */
+    private function combineBundleSKU($currentSKU, $productsArray, &$productsArray2, $kStart = 0) {
+        
+        foreach ($productsArray as $k => $itemList) {
+            if ($k <= $kStart) {
+                continue;
+            }
+            
+            foreach ($itemList as $item) {
+                $this->combineBundleSKU($currentSKU."^".$item['product_sku'], $productsArray, $productsArray2, $k);
+            }
+        }
+        
+        if (substr_count($currentSKU, '^') == count($productsArray)) {
+            $productsArray2[] = $currentSKU;
+        }
+    }
 
     /**
      * Iterates over attributes and values of the given product and returns
@@ -439,26 +516,27 @@ class Products extends AbstractModel
         $moreAttributes
     ) {
         $productXml = "";
-
+        $attributeData = $this->getProductAttributeData($product);
         // Build up array of all keys and values we want to include
         if ($stock) {
-            $masterArray = array_merge($product->getData(), $stock->getData(), $moreAttributes);
+            $masterArray = array_merge($attributeData, $stock->getData(), $moreAttributes);
         } else {
-            $masterArray = array_merge($product->getData(), $moreAttributes);
+            $masterArray = array_merge($attributeData, $moreAttributes);
         }
+        
         // Sort array by keys
         ksort($masterArray);
-
         foreach ($masterArray as $key => $value) {
-            //Added the below check to skip the loop for _cache_instance_products
-            //which is not needed or else it will throw array to string conversion exceptions.
+            
+            // Added the below check to skip the loop for _cache_instance_products
+            // which is not needed or else it will throw array to string conversion exceptions.
             // Other attributes removed because they would make duplicates
             if (in_array($key, [
                         'name', 'description', 'sku', 'price', 'qty',
                         'stock_item', 'tier_price', '_cache_instance_products',
                         '_cache_instance_product_set_attributes',
-            '_cache_instance_used_attributes',
-            '_cache_instance_used_product_attributes',
+                        '_cache_instance_used_attributes',
+                        '_cache_instance_used_product_attributes',
                         'has_options', 'required_options', 'category_ids',
                         'item_id', 'product_id', 'stock_id',
                         'use_config_backorders',
@@ -489,6 +567,7 @@ class Products extends AbstractModel
             // Check for multi-value attributes. Convert keys/IDs to values
             $attribute = $product->getResource()->getAttribute($key);
             if (is_object($attribute) && $attribute->usesSource() && is_object($attribute->getSource())) {
+                $attribute->setStoreId($this->currentStore);
                 $attributeOptions = $attribute->getSource()->getAllOptions();
 
                 $valueBuildArray = [];
@@ -530,6 +609,25 @@ class Products extends AbstractModel
             }
             // else Value not outputted because $key is an object
         }
+        
+        if ($masterArray['type_id'] == 'bundle') {
+            // Grab the bundle items from this product
+            list($bundleProducts, $qtyInBundle) = $this->getProductBundleItems($product);
+            
+            $qtyInBundleXml = "";
+            foreach ($bundleProducts as $bunSKU) {
+                $qtyInBundleXml .= "\n<sku_config sku=\"$bunSKU\">\n";
+                $skuParts = explode("^", $bunSKU);
+                for ($i = 1; $i < count($skuParts); $i++) {
+                    $currPart = $skuParts[$i];
+                    $qtyInBundleXml .= "\t<qty_in_bundle sku=\"$currPart\">{$qtyInBundle[$i][$currPart]}</qty_in_bundle>\n";
+                }
+                $qtyInBundleXml .= "</sku_config>";
+            }
+            
+            $productXml .= "    <bundle_products><![CDATA[<sku>".implode('</sku><sku>', $bundleProducts)."</sku>$qtyInBundleXml]]></bundle_products>\n";
+        }
+
         return $productXml;
     }
 

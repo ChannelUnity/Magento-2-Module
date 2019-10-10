@@ -32,7 +32,8 @@ class OrderRefundedObserver implements ObserverInterface
     public function __construct(
         Helper $helper,
         Orders $orders,
-        Registry $registry) {
+        Registry $registry
+    ) {
         
         $this->helper = $helper;
         $this->orderModel = $orders;
@@ -43,21 +44,19 @@ class OrderRefundedObserver implements ObserverInterface
     {
         $this->helper->logInfo("Observer called: ".$observer->getEvent()->getName());
         if ($this->registry->registry('cu_partial_refund') == 'active') {
-            // log and return 
+            // log and return
             $this->helper->logInfo("Skip observer as we have incoming refund");
             return;
         }
         
         $creditMemo = $observer->getData('creditmemo');
-        if (is_object($creditMemo))
-        {
+        if (is_object($creditMemo)) {
             $mageOrder = $creditMemo->getOrder();
             $orderStatus = $mageOrder->getStatus();
             $this->helper->logInfo("We have a credit memo. Order status: $orderStatus");
             
             // Only want this to be called if we are doing a PARTIAL cancellation
-            if ($orderStatus == "processing")
-            {
+            if ($orderStatus == "processing") {
                 $this->doRefund($creditMemo, $mageOrder);
             }
         }
@@ -72,8 +71,7 @@ class OrderRefundedObserver implements ObserverInterface
         
         // Collect all partial action items as required by CU API
         // Each item is a \Magento\Sales\Api\Data\CreditmemoItemInterface
-        foreach ($items as $item)
-        {
+        foreach ($items as $item) {
             $amount = $item->getRowTotalInclTax();
             $sku = $item->getSku();
             $qty = $item->getQty();
@@ -90,14 +88,14 @@ class OrderRefundedObserver implements ObserverInterface
         $shippingAmount = $creditMemo->getShippingAmount();
 
         // Send to CU
-        $cuXml = $this->orderModel->generateCuXmlForPartialAction($mageOrder, 
-                $partialActionItems, $shippingAmount);
-        if ($cuXml)
-        {
+        $cuXml = $this->orderModel->generateCuXmlForPartialAction(
+            $mageOrder,
+            $partialActionItems,
+            $shippingAmount
+        );
+        if ($cuXml) {
             $this->helper->postToChannelUnity($cuXml, 'DoPartialAction');
-        }
-        else
-        {
+        } else {
             $this->helper->logInfo("Not a CU order");
         }
     }

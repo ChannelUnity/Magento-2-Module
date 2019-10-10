@@ -7,7 +7,8 @@ use \Camiloo\Channelunity\Model\Helper;
 /**
  * Implement code to skip the CSRF check on our custom route.
  */
-class CsrfValidatorSkipPlugin {
+class CsrfValidatorSkipPlugin
+{
 
     private $helper;
 
@@ -24,7 +25,10 @@ class CsrfValidatorSkipPlugin {
      * @param \Magento\Framework\App\ActionInterface $action
      */
     public function aroundValidate(
-        $subject, \Closure $proceed, $request, $action
+        $subject,
+        \Closure $proceed,
+        $request,
+        $action
     ) {
         if (strpos($request->getModuleName(), 'channelunity') !== false) {
             $this->helper->logInfo("Skip CSRF check");
@@ -32,5 +36,4 @@ class CsrfValidatorSkipPlugin {
         }
         $proceed($request, $action); // Proceed Magento 2 core functionality
     }
-
 }

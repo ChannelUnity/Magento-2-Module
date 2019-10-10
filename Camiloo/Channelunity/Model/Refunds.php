@@ -40,7 +40,7 @@ class Refunds extends AbstractModel
         RefundOrder $refundOrder,
         ItemCreationFactory $itemCreationFactory,
         CreditmemoCreationArgumentsInterface $creditMemoArguments
-            ) {
+    ) {
         
         $this->helper = $helper;
         $this->orderRepository = $orderRepository;
