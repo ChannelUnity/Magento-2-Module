@@ -54,6 +54,7 @@ use Magento\Directory\Api\CountryInformationAcquirerInterface;
 use Magento\Directory\Helper\Data;
 use Magento\GiftMessage\Model\MessageFactory;
 use Magento\Framework\DataObjectFactory;
+use Magento\Framework\App\ResourceConnection;
 
 class Orders extends AbstractModel
 {
@@ -85,6 +86,7 @@ class Orders extends AbstractModel
     private $directoryHelper;
     private $giftMessageFactory;
     private $dataObjectFactory;
+    private $resource;
 
     public function __construct(
         Helper $helper,
@@ -113,7 +115,8 @@ class Orders extends AbstractModel
         CountryInformationAcquirerInterface $countryInformationAcquirer,
         Data $directoryHelper,
         MessageFactory $giftMessageFactory,
-        DataObjectFactory $dataObjectFactory
+        DataObjectFactory $dataObjectFactory,
+        ResourceConnection $resource
     ) {
         $this->helper = $helper;
         $this->registry = $registry;
@@ -142,6 +145,7 @@ class Orders extends AbstractModel
         $this->directoryHelper = $directoryHelper;
         $this->giftMessageFactory = $giftMessageFactory;
         $this->dataObjectFactory = $dataObjectFactory;
+        $this->resource = $resource;
     }
 
     public function generateCuXmlForOrderStatus(\Magento\Sales\Model\Order $order)
@@ -250,6 +254,24 @@ class Orders extends AbstractModel
     public function doCreate($dataArray, $order)
     {
         $str = "";
+        // Log that we've tried to create this order
+        
+        $bFoundOrder = $this->checkOrderImportHistory((string) $order->OrderId, 
+            (int) $dataArray->SubscriptionId);
+        
+        // Allow it through if we're forcing it
+        
+        $forceRetry = isset($order->OrderFlags) 
+            && strpos((string) $order->OrderFlags, 'FORCE_RETRY') !== false;
+        
+        if ($bFoundOrder && !$forceRetry) {
+            $str .= "<Info>Order blocked, we already tried to create this</Info>\n";
+            return $str;
+        }
+        
+        $this->logOrderImportHistory((string) $order->OrderId, 
+            (int) $dataArray->SubscriptionId);
+        
         $store = $this->storeManager->getStore((int) $dataArray->StoreviewId);
         $conversionRate = null;
         $forceTax = $this->helper->forceTaxValues();
@@ -455,7 +477,6 @@ class Orders extends AbstractModel
                         }
                     }
 
-
                     $productParameters->setData('bundle_option', $bundleOptions);
                 }
                 $this->helper->logInfo("doCreate: Adding {$item->SKU} to quote");
@@ -635,6 +656,10 @@ class Orders extends AbstractModel
         } else {
             $str .= "<Info>It seems the order didn't create</Info>\n";
         }
+        // Normal return path, no need to retain the order history
+        $this->deleteOrderImportHistory((string) $order->OrderId, 
+            (int) $dataArray->SubscriptionId);
+
         return $str;
     }
     
@@ -1040,5 +1065,70 @@ class Orders extends AbstractModel
     private function isRegionRequired($countryId)
     {
         return is_object($this->directoryHelper) && $this->directoryHelper->isRegionRequired($countryId);
+    }
+    
+    /**
+     * Returns true if the given order number and subscription ID combination
+     * has been seen before which would indicate the order has already been
+     * tried to be imported, false otherwise.
+     * @param type $remoteOrderId
+     * @param type $subscriptionId
+     */
+    private function checkOrderImportHistory($remoteOrderId, $subscriptionId)
+    {
+        $bOrderFound = false;
+        try {
+            
+            $orderImportHistoryTable = $this->resource->getTableName('order_import_history');
+            $connection = $this->resource->getConnection(\Magento\Framework\App\ResourceConnection::DEFAULT_CONNECTION);
+            $select = $connection->select()
+                ->from(
+                    ['oih' => $orderImportHistoryTable],
+                    ['remote_order_id', 'subscription_id']
+                )
+                ->where('remote_order_id = ?', $remoteOrderId)
+                ->where('subscription_id = ?', $subscriptionId)
+                ->limit(1);
+            $data = $connection->fetchAll($select);
+
+            if (is_array($data)) {
+                $bOrderFound = count($data) > 0;
+            }
+        } catch (\Exception $e) {
+        }
+        return $bOrderFound;
+    }
+    
+    /**
+     * Store an order number in the order import history.
+     * @param type $remoteOrderId
+     * @param type $subscriptionId
+     */
+    private function logOrderImportHistory($remoteOrderId, $subscriptionId) {
+        try {
+            $orderImportHistoryTable = $this->resource->getTableName('order_import_history');
+            $connection = $this->resource->getConnection(\Magento\Framework\App\ResourceConnection::DEFAULT_CONNECTION);
+            $connection->insert($orderImportHistoryTable, [
+                'remote_order_id' => $remoteOrderId,
+                'subscription_id' => $subscriptionId,
+                'created_at' => date("Y-m-d H:i:s")
+            ]);
+        } catch (\Exception $e) {
+        }
+    }
+    
+    /**
+     * Deletes an order number from the order import history.
+     * @param type $remoteOrderId
+     * @param type $subscriptionId
+     */
+    private function deleteOrderImportHistory($remoteOrderId, $subscriptionId) {
+        try {
+            $orderImportHistoryTable = $this->resource->getTableName('order_import_history');
+            $connection = $this->resource->getConnection(\Magento\Framework\App\ResourceConnection::DEFAULT_CONNECTION);
+            $connection->delete($orderImportHistoryTable, 
+                "remote_order_id = '$remoteOrderId' and subscription_id = '$subscriptionId'");
+        } catch (\Exception $e) {
+        }
     }
 }

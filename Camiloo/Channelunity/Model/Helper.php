@@ -79,6 +79,7 @@ class Helper extends \Magento\Framework\App\Helper\AbstractHelper
      */
     public function verifypost($messageverify)
     {
+        libxml_use_internal_errors(true);
         $xml = urlencode("<?xml version=\"1.0\" encoding=\"utf-8\" ?>
             <ChannelUnity>
             <MerchantName>" . $this->getMerchantName() . "</MerchantName>
@@ -89,7 +90,7 @@ class Helper extends \Magento\Framework\App\Helper\AbstractHelper
             </ChannelUnity>");
         $result = $this->postRequest($this->getEndpoint(), ['message' => $xml]);
 
-        $xmlResult = @simplexml_load_string($result, 'SimpleXMLElement', LIBXML_NOCDATA);
+        $xmlResult = simplexml_load_string($result, 'SimpleXMLElement', LIBXML_NOCDATA);
 
         if (!is_object($xmlResult)) {
             throw new LocalizedException(__('Result XML was not loaded in verifypost()'));
@@ -104,12 +105,13 @@ class Helper extends \Magento\Framework\App\Helper\AbstractHelper
     
     public function verifyMyself()
     {
+        libxml_use_internal_errors(true);
         $result = $this->postToChannelUnity("", "ValidateUser");
 
         if (strpos($result, "<MerchantName>") !== false || strpos($result, "<merchantname>") !== false) {
             $str = "<Status>OK</Status>\n";
         } else {
-            $xml = @simplexml_load_string($result, 'SimpleXMLElement', LIBXML_NOCDATA);
+            $xml = simplexml_load_string($result, 'SimpleXMLElement', LIBXML_NOCDATA);
 
             if (isset($xml->Status)) {
                 $str = "<Status>{$xml->Status}</Status>\n";
@@ -151,6 +153,7 @@ class Helper extends \Magento\Framework\App\Helper\AbstractHelper
      */
     public function getApiKey($merchantname = null, $username = null, $password = null)
     {
+        libxml_use_internal_errors(true);
         $apikeyTemp = $this->getConfig('channelunityint/generalsettings/apikey');
 
         if (strlen($apikeyTemp) == 0) {
@@ -170,7 +173,7 @@ class Helper extends \Magento\Framework\App\Helper\AbstractHelper
             try {
                 $result = $this->postRequest($this->getEndpoint(), ['message' => urlencode($xml)]);
 
-                $xml = @simplexml_load_string($result, 'SimpleXMLElement', LIBXML_NOCDATA);
+                $xml = simplexml_load_string($result, 'SimpleXMLElement', LIBXML_NOCDATA);
 
                 if (isset($xml->ApiKey)) {
                     $this->config->saveConfig(
@@ -392,4 +395,18 @@ XML;
     {
         return $this->productMetadata->getVersion();
     }
+    
+    /**
+     * The SerializerInterface interface and its implementations only exist 
+     * since Magento version 2.2. 
+     * 
+     * @param mixed $data
+     * @return string
+     */
+    public function serialize($data)
+    {
+        $objectManager = \Magento\Framework\App\ObjectManager::getInstance();
+        $serializer = $objectManager->create(\Magento\Framework\Serialize\Serializer\Serialize::class);
+        return $serializer->serialize($data);
+   }
 }

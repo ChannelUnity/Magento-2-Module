@@ -211,7 +211,7 @@ class Products extends AbstractModel
             // Get the attribute(s) which vary
             if (is_array($confAttributes)) {
                 foreach ($confAttributes as $cattr) {
-                    $cattr = serialize($cattr);
+                    $cattr = $this->helper->serialize($cattr);
 
                     $findTemp = "\"attribute_code\";";
 
@@ -589,7 +589,7 @@ class Products extends AbstractModel
 
             // Prevent array to string conversion error
             if (is_array($value)) {
-                $value = @serialize($value);
+                $value = $this->helper->serialize($value);
             }
 
             // Try not to add CDATA unless we really need to (messy)
@@ -650,7 +650,7 @@ class Products extends AbstractModel
         }
 
         $mg = ["images" => $mediaGallery];
-        $mgStr = serialize($mg);
+        $mgStr = $this->helper->serialize($mg);
 
         return $mgStr;
     }

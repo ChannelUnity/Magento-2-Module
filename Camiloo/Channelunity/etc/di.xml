@@ -2,7 +2,7 @@
 
     <preference for="\Magento\Tax\Model\Sales\Total\Quote\Tax" type="Camiloo\Channelunity\Model\Tax" />
     <preference for="\Magento\CatalogInventory\Observer\ItemsForReindex" type="Camiloo\Channelunity\Model\ItemsForReindex" />
-
+    
     <type name="\Magento\Sales\Model\Order\Shipment">
         <plugin name="ShipmentTracking" type="Camiloo\Channelunity\Plugin\OrderShippedPlugin" sortOrder="1" />
     </type>
