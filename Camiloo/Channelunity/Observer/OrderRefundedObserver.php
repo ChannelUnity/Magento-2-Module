@@ -55,9 +55,17 @@ class OrderRefundedObserver implements ObserverInterface
             $orderStatus = $mageOrder->getStatus();
             $this->helper->logInfo("We have a credit memo. Order status: $orderStatus");
             
+            $crMemoTotal = $creditMemo->getGrandTotal();
+            $orderTotal = $mageOrder->getGrandTotal();
+            
             // Only want this to be called if we are doing a PARTIAL cancellation
-            if ($orderStatus == "processing") {
+            if ($crMemoTotal < $orderTotal) {
+                $this->helper->logInfo("Credit memo total $crMemoTotal is less than order total $orderTotal, doing partial cancellation");
+                
                 $this->doRefund($creditMemo, $mageOrder);
+            }
+            else {
+                $this->helper->logInfo("Credit memo total $crMemoTotal is NOT less than order total $orderTotal, skipping partial cancellation");
             }
         }
     }
