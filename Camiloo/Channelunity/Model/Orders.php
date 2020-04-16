@@ -255,7 +255,7 @@ class Orders extends AbstractModel
     {
         $str = "";
         // Log that we've tried to create this order
-        
+        $orderId = trim((string) $order->OrderId);
         $bFoundOrder = $this->checkOrderImportHistory((string) $order->OrderId, 
             (int) $dataArray->SubscriptionId);
         
@@ -265,7 +265,8 @@ class Orders extends AbstractModel
             && strpos((string) $order->OrderFlags, 'FORCE_RETRY') !== false;
         
         if ($bFoundOrder && !$forceRetry) {
-            $str .= "<Info>Order blocked, we already tried to create this</Info>\n";
+            $str .= "<Exception>Order blocked, we already tried to create this</Exception>\n";
+            $str .= "<NotImported>$orderId</NotImported>\n";
             return $str;
         }
         
@@ -1031,7 +1032,7 @@ class Orders extends AbstractModel
                     $this->helper->logInfo("getRegionId: ".$region->getName()." / ".$region->getId());
                     
                     if (strtolower($region->getName()) == strtolower($stateName)
-                    || strtolower($region->getCode()) == strtolower($stateName)) {
+                        || strtolower($region->getCode()) == strtolower($stateName)) {
                         return $region->getId();
                     }
                 }
