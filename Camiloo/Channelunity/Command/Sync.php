@@ -23,6 +23,7 @@ use Magento\CatalogInventory\Model\ResourceModel\Stock\Item;
 use Magento\Catalog\Model\ResourceModel\Product;
 use Magento\Eav\Model\ResourceModel\Entity\Attribute;
 use Magento\Framework\App\ResourceConnection;
+use Magento\Framework\Module\Manager;
 
 /**
  * Sends stock and price information for each SKU in the Magento catalog to CU.
@@ -40,6 +41,8 @@ class Sync extends Command
     private $product;
     private $eavAttribute;
     private $resource;
+    private $moduleManager;
+    private $contentStaging;
     
     public function __construct(
         Helper $helper,
@@ -50,7 +53,8 @@ class Sync extends Command
         Item $stockItem,
         Product $product,
         Attribute $eavAttribute,
-        ResourceConnection $resource
+        ResourceConnection $resource,
+        Manager $moduleManager
     ) {
         parent::__construct();
         $this->helper = $helper;
@@ -64,6 +68,7 @@ class Sync extends Command
         $this->resource = $resource;
         $this->buffer = "";
         $this->lastSyncProd = 0;
+        $this->moduleManager = $moduleManager;
     }
     
     /**
@@ -85,7 +90,9 @@ class Sync extends Command
     }
     
     private function runSyncNow($output)
-    {
+    {   
+        $this->contentStaging = $this->moduleManager->isEnabled('Magento_CatalogStaging');
+        
         do {
             $this->buffer = "";
             
@@ -124,7 +131,8 @@ class Sync extends Command
         $qtyStock = $args['row']['qty'];
         $row = $args['row']['sku'] . "," . (int)($qtyStock) . "," . $args['row']['value'] . "*\n";
         $this->buffer .= $row;
-        $this->lastSyncProd = $args['row']['entity_id'];
+        $decColName = $this->contentStaging ? 'row_id' : 'entity_id';
+        $this->lastSyncProd = $args['row'][$decColName];
     }
 
     public function fullstockpricemessageAction()
@@ -132,6 +140,7 @@ class Sync extends Command
         // Get the attribute ID for prices so we can load our prices
         $attributeId = $this->eavAttribute->getIdByCode('catalog_product', 'price');
         $tableName = $this->resource->getTableName('catalog_product_entity_decimal');
+        $decColName = $this->contentStaging ? 'row_id' : 'entity_id';
         
         $select = $this->stockItem->getConnection()
                 ->select()
@@ -142,7 +151,7 @@ class Sync extends Command
                 )
                 ->join(
                     ['t3' => $tableName],
-                    't1.product_id = t3.entity_id'
+                    't1.product_id = t3.'.$decColName
                 )
                 ->where('t1.product_id > ?', $this->lastSyncProd)
                 ->where('t3.attribute_id = ?', $attributeId)

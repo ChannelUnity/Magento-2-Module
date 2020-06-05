@@ -22,6 +22,9 @@
     <event name="catalog_product_delete_after_done">
         <observer name="DeleteProduct" instance="Camiloo\Channelunity\Observer\DeleteProductObserver" />
     </event>
+    <event name="catalog_product_is_salable_after">
+        <observer name="ProductIsSalableAfter" instance="Camiloo\Channelunity\Observer\ProductIsSalableObserver" />
+    </event>
     
     <!-- Order related observers -->
     <event name="sales_order_save_after">
