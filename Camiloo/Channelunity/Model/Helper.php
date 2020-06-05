@@ -71,7 +71,7 @@ class Helper extends \Magento\Framework\App\Helper\AbstractHelper
      */
     public function getEndpoint()
     {
-        return "http://my.channelunity.com/event.php";
+        return "https://my.channelunity.com/event.php";
     }
 
     /**
