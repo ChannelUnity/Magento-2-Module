@@ -174,12 +174,16 @@ class Index extends \Magento\Framework\App\Action\Action
                 break;
             
             case "ValidateCustomerDetails":
-                $customerId = $this->cucustomers->validateCustomer($request->EmailAddress, $request->Password);
-                $str .= "<CustomerID>$customerId</CustomerID>";
+                $customerData = $this->cucustomers->validateCustomer(
+                    $request->WebsiteId, $request->EmailAddress, $request->Password);
+                
+                $str .= $customerData;
                 break;
             
             case "CreateCustomerAccount":
-                $customerId = $this->cucustomers->createCustomer($request->EmailAddress, $request->Password, $request->FirstName, $request->LastName);
+                $customerId = $this->cucustomers->createCustomer($request->WebsiteId, 
+                        $request->EmailAddress, $request->Password, 
+                        $request->FirstName, $request->LastName);
                 $str .= "<CustomerID>$customerId</CustomerID>";
                 break;
             
@@ -189,8 +193,19 @@ class Index extends \Magento\Framework\App\Action\Action
                 break;
             
             case "GetCustomerOrders":
-                $str .= $this->cucustomers->getOrdersByCustomerAsXML($request->CustomerID);
-                $str .= "<Status>OK</Status>";
+                try {
+                    $limit = isset($request->Limit) ? (int)$request->Limit : 200;
+                    $offset = isset($request->Offset) ? (int)$request->Offset : 0;
+                    
+                    $str .= $this->cucustomers->getOrdersByCustomerAsXML($request->WebsiteId, 
+                        $request->EmailAddress, $request->Password, $limit, $offset);
+                    
+                    $str .= "<Status>OK</Status>";
+                }
+                catch (\Exception $e) {
+                    $str .= "<Status>Error - ".$e->getMessage()."</Status>";
+                }
+                
                 break;
         }
 

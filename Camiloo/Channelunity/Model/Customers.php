@@ -58,10 +58,33 @@ class Customers extends AbstractModel
      * @param type $emailAddress
      * @param type $password
      */
-    public function validateCustomer($emailAddress, $password)
+    public function validateCustomer($websiteId, $emailAddress, $password)
     {
-        $customer = $this->customerAccountManagement->authenticate($emailAddress, $password);
-        return $customer->getId();
+        $website = $this->storeManager->getWebsite((int) $websiteId);
+        if (is_object($website)) {
+            $storeId = $website->getDefaultStore()->getId();
+            $this->storeManager->setCurrentStore($storeId);
+            
+            $customer = $this->customerAccountManagement->authenticate((string)$emailAddress, (string)$password);
+            if (is_object($customer)) {
+                $customerId = $customer->getId();
+
+                return "<CustomerID>$customerId</CustomerID>"
+                        . "<Data>"
+                        . "<firstname><![CDATA[".$customer->getFirstname()."]]></firstname>"
+                        . "<lastname><![CDATA[".$customer->getLastname()."]]></lastname>"
+                        . "<email><![CDATA[".$customer->getEmail()."]]></email>"
+                        . "<created_at><![CDATA[".$customer->getCreatedAt()."]]></created_at>"
+                        . "</Data>";
+            }
+            else {
+
+                return "<CustomerID>0</CustomerID>";
+            }
+        } else {
+
+            return "<CustomerID>0</CustomerID>";
+        }
     }
     
     /**
@@ -71,59 +94,78 @@ class Customers extends AbstractModel
      * @param type $firstName
      * @param type $lastName
      */
-    public function createCustomer($emailAddress, $password, $firstName, $lastName)
+    public function createCustomer($websiteId, $emailAddress, $password, $firstName, $lastName)
     {
-        
-        $customer = $this->customerFactory->create();
-        
-        $store = $this->storeManager->getStore(1); // TODO pass as param
-        $websiteId = $store->getWebsiteId();
-        
-        // Create a new customer record
-        $customer->setWebsiteId($websiteId)
-                ->setStore($store)
-                ->setFirstname($firstName)
-                ->setLastname($lastName)
-                ->setEmail((string)$emailAddress)
-                ->setPassword($password);
-        $customer->save();
+        $website = $this->storeManager->getWebsite((int) $websiteId);
+        if (is_object($website)) {
+            $storeId = $website->getDefaultStore()->getId();
+            // Create a new customer record
+            $customer = $this->customerFactory->create();
+            
+            $customer->setWebsiteId((int) $websiteId);
+            $customer->setStoreId($storeId);
+            $customer->setEmail((string) $emailAddress);
+            $customer->setFirstname((string) $firstName);
+            $customer->setLastname((string) $lastName);
+            $customer->setPassword((string) $password);
+            
+            /** @var \Magento\Customer\Api\CustomerRepositoryInterface $customerRepository */
+            $customer->save();
 
-        $customer->sendNewAccountEmail();
+            try {
+                $customer->sendNewAccountEmail();
+            }
+            catch (\Exception $e) {
+                //Don't want to fail if the email fails.
+            }
+
+            return $customer->getId();
+        }
         
-        return $customer->getId();
+        return 0;
     }
     
     /**
      * Returns all orders this customer has placed.
      * @param type $customerId
      */
-    public function getOrdersByCustomer($customerId)
+    public function getOrdersByCustomer($customerId, $limit, $offset)
     {
         // Limit to 10 as a default
-        $orders = $this->orderCollectionFactory->create()
-                ->addFieldToSelect('*')
-                ->addFieldToFilter('customer_id', $customerId)
-                ->setOrder('created_at', 'desc')
-                ->limit(10);
-        return $orders;
+        $orderCollection = $this->orderCollectionFactory->create()
+                ->addFieldToSelect('*');
+        $orderCollection->addAttributeToFilter('customer_id', $customerId)
+                ->setOrder('created_at', 'desc')->setPageSize($limit);
+        return $orderCollection;
     }
     
-    public function getOrdersByCustomerAsXML($customerId)
+    public function getOrdersByCustomerAsXML($websiteId, $emailAddress, $password,
+            $limit, $offset)
     {
-        $orders = $this->getOrdersByCustomer($customerId);
-        $xml = "<Orders>\n";
-        
-        foreach ($orders as $order) {
-            $xml .= "  <Order>\n";
-            $keys = array_keys($order->getData());
-            
-            foreach ($keys as $key) {
-                $xml .= "    <$key></$key>\n";
-            }
-            $xml .= "  </Order>\n";
+        $website = $this->storeManager->getWebsite((int) $websiteId);
+        if (is_object($website)) {
+            $storeId = $website->getDefaultStore()->getId();
+            $this->storeManager->setCurrentStore($storeId);
         }
-        $xml .= "</Orders>\n";
-        return $xml;
+        $customer = $this->customerAccountManagement->authenticate((string)$emailAddress, (string)$password);
+        if (is_object($customer)) {
+            $customerId = $customer->getId();
+            
+            $orders = $this->getOrdersByCustomer($customerId, (int)$limit, (int)$offset);
+            $xml = "<Orders>\n";
+            
+            foreach ($orders as $order) {
+                $xml .= "  <Order>\n";
+                $keys = array_keys($order->getData());
+
+                foreach ($keys as $key) {
+                    $xml .= "    <$key><![CDATA[".$order->getData($key)."]]></$key>\n";
+                }
+                $xml .= "  </Order>\n";
+            }
+            $xml .= "</Orders>\n";
+            return $xml;
+        }
     }
 
     /**
