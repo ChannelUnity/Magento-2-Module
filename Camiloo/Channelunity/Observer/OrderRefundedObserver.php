@@ -20,6 +20,7 @@ namespace Camiloo\Channelunity\Observer;
 use \Magento\Framework\Event\ObserverInterface;
 use \Magento\Framework\Event\Observer;
 use \Magento\Framework\Registry;
+use \Magento\Sales\Api\CreditmemoRepositoryInterface;
 use \Camiloo\Channelunity\Model\Helper;
 use \Camiloo\Channelunity\Model\Orders;
 
@@ -28,16 +29,21 @@ class OrderRefundedObserver implements ObserverInterface
     private $helper;
     private $orderModel;
     private $registry;
-    
+    /**
+     * @var CreditmemoRepositoryInterface
+     */
+    private $creditmemoRepository;
+
     public function __construct(
         Helper $helper,
         Orders $orders,
-        Registry $registry
+        Registry $registry,
+        CreditmemoRepositoryInterface $creditmemoRepository
     ) {
-        
         $this->helper = $helper;
         $this->orderModel = $orders;
         $this->registry = $registry;
+        $this->creditmemoRepository = $creditmemoRepository;
     }
     
     public function execute(Observer $observer)
@@ -62,7 +68,13 @@ class OrderRefundedObserver implements ObserverInterface
             if ($crMemoTotal < $orderTotal) {
                 $this->helper->logInfo("Credit memo total $crMemoTotal is less than order total $orderTotal, doing partial cancellation");
                 
-                $this->doRefund($creditMemo, $mageOrder);
+                // Load the credit memo again just incase the SKUs are missing
+                $creditmemoId = $creditMemo->getEntityId();
+                $this->helper->logInfo("Load credit memo ID {$creditmemoId} ".var_export($creditMemo->debug(),true));
+                $newCreditMemo = $this->creditmemoRepository->get($creditmemoId);
+                $this->helper->logInfo("Is credit memo loaded: " . (is_object($newCreditMemo) ? "yes" : "no"));
+                
+                $this->doRefund($newCreditMemo, $mageOrder);
             }
             else {
                 $this->helper->logInfo("Credit memo total $crMemoTotal is NOT less than order total $orderTotal, skipping partial cancellation");
