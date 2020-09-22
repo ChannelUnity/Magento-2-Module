@@ -1031,8 +1031,8 @@ class Orders extends AbstractModel
                     
                     $this->helper->logInfo("getRegionId: ".$region->getName()." / ".$region->getId());
                     
-					if (strtolower($region->getName()) == strtolower($stateName)
-		                    || strtolower($region->getCode()) == strtolower($stateName)) {
+                    if (strtolower($region->getName()) == strtolower($stateName)
+                        || strtolower($region->getCode()) == strtolower($stateName)) {
                         return $region->getId();
                     }
                 }
