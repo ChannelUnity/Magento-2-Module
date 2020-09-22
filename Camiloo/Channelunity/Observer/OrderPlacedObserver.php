@@ -71,6 +71,8 @@ class OrderPlacedObserver implements ObserverInterface
         if (is_object($order)) {
             $itemsOnOrder = $order->getAllItems();
             
+            $updates = [];
+            
             foreach ($itemsOnOrder as $item) {
                 // Send updates for these products to ChannelUnity
                 // The only thing that will have changed is the qty
@@ -94,14 +96,20 @@ class OrderPlacedObserver implements ObserverInterface
                     $stock = $this->stockRegistry->getStockItem($productId);
                     $pqty = $stock->getQty();
                 }
-
+                
+                $updates[] = "$psku,$pqty,";
+            }
+            
+            if ($updates) {
+                $updatesToSend = implode("*\n", $updates);
+                
                 // Get the URL of the store
                 $sourceUrl = $this->helper->getBaseUrl();
 
                 $xml = "<Products>
                         <SourceURL>{$sourceUrl}</SourceURL>
                         <StoreViewId>0</StoreViewId>
-                        <Data><![CDATA[ $psku,$pqty, ]]></Data>
+                        <Data><![CDATA[ $updatesToSend ]]></Data>
                         </Products>";
 
                 // Send to ChannelUnity
