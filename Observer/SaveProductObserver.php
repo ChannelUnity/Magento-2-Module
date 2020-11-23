@@ -77,8 +77,16 @@ class SaveProductObserver implements ObserverInterface
             if (!is_object($product)) {
                 $productInRequest = $this->request->getParam('product');
                 $sku = $productInRequest['sku'];
-                $product = $this->productRepository->get($sku);
-                $this->helper->logInfo("Got product model from sku in request");
+                
+                // Bulk update - can reach here but will have no SKU
+                // Just skip past
+                if (!$sku) {
+                    $productIds = [];
+                }
+                else {
+                    $product = $this->productRepository->get($sku);
+                    $this->helper->logInfo("Got product model from sku in request");
+                }
             }
 
             if (is_object($product)) {

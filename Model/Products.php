@@ -550,7 +550,12 @@ class Products extends AbstractModel
                         'is_decimal_divided',
                         'is_qty_decimal',
                         'downloadable_links',
-                        'options'
+                        'options',
+                        'options_container',
+                        'stock_status_changed_auto',
+                        'min_qty_allowed_in_shopping_cart',
+                        'stock_status_changed_automatically_flag',
+                        'tier_price_changed',
                     ])) {
                 continue;
             }
