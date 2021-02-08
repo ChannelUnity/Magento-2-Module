@@ -411,6 +411,11 @@ class Products extends AbstractModel
         
         try {
             if ($rawImage != '') {
+                // Ensure $rawImage starts with /
+                if ($rawImage[0] != '/') {
+                    $rawImage = '/'.$rawImage;
+                }
+                
                 $storeObject = $this->storeManager->getStore();
 
                 $mediaUrl = $storeObject->getBaseUrl(\Magento\Framework\UrlInterface::URL_TYPE_MEDIA);
