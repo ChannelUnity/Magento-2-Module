@@ -200,10 +200,14 @@ class Products extends AbstractModel
         if ($product->getData("type_id") == 'configurable') {
             $prdTypeInst = $product->getTypeInstance();
 
-            $childProducts = $prdTypeInst->getUsedProducts($product);
+            // Do this way so that we get child products even if out of stock
+            $childProducts = $prdTypeInst->getChildrenIds($product->getId());
 
-            foreach ($childProducts as $cp) {
-                $productXml .= "    <SKU><![CDATA[{$cp->getData('sku')}]]></SKU>\n";
+            foreach ($childProducts as $childProductIds) {
+                foreach ($childProductIds as $cpId) {
+                    $cp = $this->productFactory->create()->load($cpId);
+                    $productXml .= "    <SKU><![CDATA[{$cp->getData('sku')}]]></SKU>\n";
+                }
             }
 
             $confAttributes = $prdTypeInst->getConfigurableAttributesAsArray($product);
@@ -432,12 +436,12 @@ class Products extends AbstractModel
         
         $attributeData = $product->getData();
         
-        $customAttributes = $product->getCustomAttributes(); 
+        $customAttributes = $product->getCustomAttributes();
         foreach ($customAttributes as $attribute) {
             if (!isset($attributeData[$attribute->getAttributeCode()]) && false) {
                 $attribute->setStoreId($this->currentStore);
                 $attributeData[$attribute->getAttributeCode()] = $attribute->getvalue();
-                //$product->getResource()->getAttribute($attribute->getAttributeCode())->getFrontend()->getValue($product); 
+                //$product->getResource()->getAttribute($attribute->getAttributeCode())->getFrontend()->getValue($product);
             }
         }
         
@@ -454,10 +458,10 @@ class Products extends AbstractModel
         $optionIdToPosition = [];
         
         $selectionCollection = $product->getTypeInstance(true)
-	        ->getSelectionsCollection(
-	            $product->getTypeInstance(true)->getOptionsIds($product),
-	            $product
-	        );
+            ->getSelectionsCollection(
+                $product->getTypeInstance(true)->getOptionsIds($product),
+                $product
+            );
         
         foreach ($selectionCollection as $pselection) {
             
