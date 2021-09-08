@@ -70,11 +70,17 @@ class OrderRefundedObserver implements ObserverInterface
                 
                 // Load the credit memo again just incase the SKUs are missing
                 $creditmemoId = $creditMemo->getEntityId();
-                $this->helper->logInfo("Load credit memo ID {$creditmemoId} ".var_export($creditMemo->debug(),true));
-                $newCreditMemo = $this->creditmemoRepository->get($creditmemoId);
-                $this->helper->logInfo("Is credit memo loaded: " . (is_object($newCreditMemo) ? "yes" : "no"));
-                
-                $this->doRefund($newCreditMemo, $mageOrder);
+                // Ensure we have a valid ID!
+                if ($creditmemoId) {
+                    $this->helper->logInfo("Load credit memo ID {$creditmemoId}");
+                    $newCreditMemo = $this->creditmemoRepository->get($creditmemoId);
+                    $this->helper->logInfo("Is credit memo loaded: " . (is_object($newCreditMemo) ? "yes" : "no"));
+
+                    $this->doRefund($newCreditMemo, $mageOrder);
+                }
+                else {
+                    $this->doRefund($creditMemo, $mageOrder);
+                }
             }
             else {
                 $this->helper->logInfo("Credit memo total $crMemoTotal is NOT less than order total $orderTotal, skipping partial cancellation");
