@@ -624,7 +624,7 @@ class Products extends AbstractModel
             // else Value not outputted because $key is an object
         }
         
-        if ($masterArray['type_id'] == 'bundle') {
+        if (isset($masterArray['type_id']) && $masterArray['type_id'] == 'bundle') {
             // Grab the bundle items from this product
             list($bundleProducts, $qtyInBundle) = $this->getProductBundleItems($product);
             
