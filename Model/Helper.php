@@ -357,6 +357,9 @@ XML;
             "CU_AMZ_CN" => "Amazon.cn",
             "CU_AMZ_IN" => "Amazon.in",
             "CU_AMZ_MX" => "Amazon.com.mx",
+            "CU_AMZ_SE" => "Amazon.se",
+            "CU_AMZ_NL" => "Amazon.nl",
+            "CU_AMZ_AU" => "Amazon.com.au",
             "CU_EBAY_COM" => "eBay USA",
             "CU_EBAY_COM_MOTORS" => "eBay USA Motors",
             "CU_EBAY_UK" => "eBay UK",
@@ -385,7 +388,13 @@ XML;
             "CU_FRUUGO_COM" => "Fruugo.com",
             "CU_ETSY_COM" => "Etsy",
             "CU_WAYFAIR_UK" => "Wayfair",
-            "CU_CLEVERBOXES_COM" => "Cleverboxes"
+            "CU_CLEVERBOXES_COM" => "Cleverboxes",
+            "CU_SPS_COM" => "SPS",
+            "CU_OTTO_DE" => "Otto",
+            "CU_BIGCOMMERCE_COM" => "Bigcommerce",
+            "CU_ZALANDO_COM" => "Zalando",
+            "CU_PLEDGEMANAGER_COM" => "Pledgemanager",
+            "CU_WALMART_COM" => "Walmart",
         ];
 
         return array_key_exists($serviceType, $csku) ? $csku[$serviceType] : "Unknown";
@@ -397,9 +406,9 @@ XML;
     }
     
     /**
-     * The SerializerInterface interface and its implementations only exist 
-     * since Magento version 2.2. 
-     * 
+     * The SerializerInterface interface and its implementations only exist
+     * since Magento version 2.2.
+     *
      * @param mixed $data
      * @return string
      */
