@@ -53,103 +53,108 @@ class OrderPlacedObserver implements ObserverInterface
 
     public function execute(Observer $observer)
     {
-        $this->helper->logInfo("Observer called: ".$observer->getEvent()->getName());
-        $order = $observer->getOrder();
-        if (!$order) {
-            $invoice = $observer->getInvoice();
-            if (is_object($invoice)) {
-                $order = $invoice->getOrder();
-            }
-        }
-        if (!$order) {
-            $creditmemo = $observer->getCreditmemo();
-            if (is_object($creditmemo)) {
-                $order = $creditmemo->getOrder();
-            }
-        }
-        
-        if (is_object($order)) {
-            $itemsOnOrder = $order->getAllItems();
-            
-            $updates = [];
-            
-            foreach ($itemsOnOrder as $item) {
-                // Send updates for these products to ChannelUnity
-                // The only thing that will have changed is the qty
-                // so may as well send a product data lite call
-                $product = $item->getProduct();
-                if (!$product) {
-                    continue;
+        try {
+            $this->helper->logInfo("Observer called: ".$observer->getEvent()->getName());
+            $order = $observer->getOrder();
+            if (!$order) {
+                $invoice = $observer->getInvoice();
+                if (is_object($invoice)) {
+                    $order = $invoice->getOrder();
                 }
-                
-                $productId = $product->getId();
-                $psku = $product->getData('sku');
-                
-                $this->helper->logInfo("OrderPlacedObserver. Product ID $productId SKU $psku");
-                
-                try {
-                    $stock = $this->stockItemRepository->get($productId);
-                    $pqty = $stock->getData('qty');
-                } catch (\Exception $e) {
-                    $this->helper->logInfo("OrderPlacedObserver error ".$e->getMessage());
-                    // Stock Item with id "****" does not exist
-                    $stock = $this->stockRegistry->getStockItem($productId);
-                    $pqty = $stock->getQty();
+            }
+            if (!$order) {
+                $creditmemo = $observer->getCreditmemo();
+                if (is_object($creditmemo)) {
+                    $order = $creditmemo->getOrder();
                 }
-                
-                $updates[] = "$psku,$pqty,";
             }
-            
-            if ($updates) {
-                $updatesToSend = implode("*\n", $updates);
-                
-                // Get the URL of the store
-                $sourceUrl = $this->helper->getBaseUrl();
 
-                $xml = "<Products>
-                        <SourceURL>{$sourceUrl}</SourceURL>
-                        <StoreViewId>0</StoreViewId>
-                        <Data><![CDATA[ $updatesToSend ]]></Data>
-                        </Products>";
+            if (is_object($order)) {
+                $itemsOnOrder = $order->getAllItems();
 
-                // Send to ChannelUnity
-                $response = $this->helper->postToChannelUnity($xml, 'ProductDataLite');
-            }
-            
-            // ------ Update order status too (will only have an
-            // effect if this is a CU order) -----
-            
-            $shipments = $order->getShipmentsCollection();
-            $carrierName = "";
-            $shipMethod = "";
-            $trackingNumber = "";
-            
-            if ($shipments) {
-                foreach ($shipments as $shipment) {
-                    $tracks = $shipment->getAllTracks();
-                    foreach ($tracks as $track) {
-                        $carrierName = $track->getCarrierCode();
-                        if ($carrierName == "custom") {
-                            $carrierName = $track->getTitle();
+                $updates = [];
+
+                foreach ($itemsOnOrder as $item) {
+                    // Send updates for these products to ChannelUnity
+                    // The only thing that will have changed is the qty
+                    // so may as well send a product data lite call
+                    $product = $item->getProduct();
+                    if (!$product) {
+                        continue;
+                    }
+
+                    $productId = $product->getId();
+                    $psku = $product->getData('sku');
+
+                    $this->helper->logInfo("OrderPlacedObserver. Product ID $productId SKU $psku");
+
+                    try {
+                        $stock = $this->stockItemRepository->get($productId);
+                        $pqty = $stock->getData('qty');
+                    } catch (\Exception $e) {
+                        $this->helper->logInfo("OrderPlacedObserver error ".$e->getMessage());
+                        // Stock Item with id "****" does not exist
+                        $stock = $this->stockRegistry->getStockItem($productId);
+                        $pqty = $stock->getQty();
+                    }
+
+                    $updates[] = "$psku,$pqty,";
+                }
+
+                if ($updates) {
+                    $updatesToSend = implode("*\n", $updates);
+
+                    // Get the URL of the store
+                    $sourceUrl = $this->helper->getBaseUrl();
+
+                    $xml = "<Products>
+                            <SourceURL>{$sourceUrl}</SourceURL>
+                            <StoreViewId>0</StoreViewId>
+                            <Data><![CDATA[ $updatesToSend ]]></Data>
+                            </Products>";
+
+                    // Send to ChannelUnity
+                    $response = $this->helper->postToChannelUnity($xml, 'ProductDataLite');
+                }
+
+                // ------ Update order status too (will only have an
+                // effect if this is a CU order) -----
+
+                $shipments = $order->getShipmentsCollection();
+                $carrierName = "";
+                $shipMethod = "";
+                $trackingNumber = "";
+
+                if ($shipments) {
+                    foreach ($shipments as $shipment) {
+                        $tracks = $shipment->getAllTracks();
+                        foreach ($tracks as $track) {
+                            $carrierName = $track->getCarrierCode();
+                            if ($carrierName == "custom") {
+                                $carrierName = $track->getTitle();
+                            }
+                            $shipMethod = $track->getTitle();
+                            $trackingNumber = $track->getNumber();
+                            break;
                         }
-                        $shipMethod = $track->getTitle();
-                        $trackingNumber = $track->getNumber();
                         break;
                     }
-                    break;
                 }
+                $cuxml = $this->orderModel->generateCuXmlForOrderShip(
+                    $order,
+                    $carrierName,
+                    $shipMethod,
+                    $trackingNumber
+                );
+                if ($cuxml) {
+                    $this->helper->postToChannelUnity($cuxml, 'OrderStatusUpdate');
+                }
+            } else {
+                $this->helper->logError("!!!Order data not found!!!");
             }
-            $cuxml = $this->orderModel->generateCuXmlForOrderShip(
-                $order,
-                $carrierName,
-                $shipMethod,
-                $trackingNumber
-            );
-            if ($cuxml) {
-                $this->helper->postToChannelUnity($cuxml, 'OrderStatusUpdate');
-            }
-        } else {
-            $this->helper->logError("!!!Order data not found!!!");
+        }
+        catch (\Exception $e2) {
+            $this->helper->logError("OrderPlacedObserver general error ".$e2->getMessage());
         }
     }
 }

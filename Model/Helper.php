@@ -59,6 +59,7 @@ class Helper extends \Magento\Framework\App\Helper\AbstractHelper
     {
         $client = $this->curlFactory->create();
         $client->setUri($url);
+        $client->setConfig(['timeout' => 5]);
         $client->setParameterPost($requestData);
         
         $responseBody = $client->request(\Zend_Http_Client::POST)->getBody();
@@ -406,9 +407,9 @@ XML;
     }
     
     /**
-     * The SerializerInterface interface and its implementations only exist
-     * since Magento version 2.2.
-     *
+     * The SerializerInterface interface and its implementations only exist 
+     * since Magento version 2.2. 
+     * 
      * @param mixed $data
      * @return string
      */
