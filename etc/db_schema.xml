@@ -1,0 +1,23 @@
+<schema xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:Setup/Declaration/Schema/etc/schema.xsd">
+    <table name="product_updates">
+        <column xsi:type="int" name="product_id" unsigned="true" nullable="false" identity="true" comment="Product ID"/>
+        <column xsi:type="varchar" name="notes" nullable="true" length="255" default="" comment="Notes"/>
+        
+        <constraint xsi:type="primary" referenceId="PRIMARY">
+            <column name="product_id"/>
+        </constraint>
+    </table>
+    <table name="order_import_history">
+        <column xsi:type="int" name="id" unsigned="true" nullable="false" identity="true" comment="ID"/>
+        <column xsi:type="varchar" name="remote_order_id" nullable="true" length="100" default="" comment="Marketplace Order ID"/>
+        <column xsi:type="int" name="subscription_id" unsigned="true" nullable="false" default="0" comment="Subscription ID"/>
+        <column xsi:type="datetime" name="created_at" nullable="true" comment="Created At"/>
+        <index referenceId="OIH" indexType="btree">
+            <column name="remote_order_id"/>
+            <column name="subscription_id"/>
+        </index>
+        <constraint xsi:type="primary" referenceId="PRIMARY">
+            <column name="id"/>
+        </constraint>
+    </table>
+</schema>
