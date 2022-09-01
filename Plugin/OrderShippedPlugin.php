@@ -53,20 +53,14 @@ class OrderShippedPlugin
                 $infoArray = $payment->getAdditionalInformation();
                 if (isset($infoArray['subscription_id'])) {
                     // This is a CU order
-                
-                    $carrierName = $track->getCarrierCode();
-                    if ($carrierName == "custom") {
-                        $carrierName = $track->getTitle();
-                    }
-                    $shipMethod = $track->getTitle();
-                    $trackingNumber = $track->getNumber();
-
-                    if ($carrierName) {
+                    
+                    $tracksCollection = $order->getTracksCollection();
+                    $trackingNumbers = $this->helper->getTrackingNumbers($tracksCollection, $track);
+                    
+                    if (isset($trackingNumbers['Tracking'])) {
                         $cuxml = $this->orderModel->generateCuXmlForOrderShip(
                             $order,
-                            $carrierName,
-                            $shipMethod,
-                            $trackingNumber
+                            $trackingNumbers
                         );
                         if ($cuxml) {
                             $this->helper->postToChannelUnity($cuxml, 'OrderStatusUpdate');

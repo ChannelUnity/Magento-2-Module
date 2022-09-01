@@ -28,4 +28,45 @@
             </argument>
         </arguments>
     </type>
+    
+    <type name="Camiloo\Channelunity\Command\Sync">
+        <arguments>
+            <argument name="helper" xsi:type="object">Camiloo\Channelunity\Model\Helper\Proxy</argument>
+            <argument name="cuproducts" xsi:type="object">Camiloo\Channelunity\Model\Products\Proxy</argument>
+            <argument name="searchCriteriaBuilder" xsi:type="object">Magento\Framework\Api\SearchCriteriaBuilder\Proxy</argument>
+            <argument name="stockItemRepository" xsi:type="object">Magento\CatalogInventory\Model\Stock\StockItemRepository\Proxy</argument>
+            <argument name="iterator" xsi:type="object">Magento\Framework\Model\ResourceModel\Iterator\Proxy</argument>
+            <argument name="stockItem" xsi:type="object">Magento\CatalogInventory\Model\ResourceModel\Stock\Item\Proxy</argument>
+            <argument name="product" xsi:type="object">Magento\Catalog\Model\ResourceModel\Product\Proxy</argument>
+            <argument name="eavAttribute" xsi:type="object">Magento\Eav\Model\ResourceModel\Entity\Attribute\Proxy</argument>
+            <argument name="resource" xsi:type="object">Magento\Framework\App\ResourceConnection\Proxy</argument>
+            <argument name="moduleManager" xsi:type="object">Magento\Framework\Module\Manager\Proxy</argument>
+        </arguments>
+    </type>
+    
+    <type name="Camiloo\Channelunity\Command\SyncProducts">
+        <arguments>
+            <argument name="helper" xsi:type="object">Camiloo\Channelunity\Model\Helper\Proxy</argument>
+            <argument name="cuproducts" xsi:type="object">Camiloo\Channelunity\Model\Products\Proxy</argument>
+            <argument name="state" xsi:type="object">Magento\Framework\App\State\Proxy</argument>
+        </arguments>
+    </type>
+    
+    <type name="Camiloo\Channelunity\Command\DeleteOrders">
+        <arguments>
+            <argument name="orderRepository" xsi:type="object">Magento\Sales\Model\OrderRepository\Proxy</argument>
+            <argument name="searchCriteriaBuilder" xsi:type="object">Magento\Framework\Api\SearchCriteriaBuilder\Proxy</argument>
+            <argument name="registry" xsi:type="object">Magento\Framework\Registry\Proxy</argument>
+        </arguments>
+    </type>
+    
+    <type name="Camiloo\Channelunity\Command\BulkProductSync">
+        <arguments>
+            <argument name="helper" xsi:type="object">Camiloo\Channelunity\Model\Helper\Proxy</argument>
+            <argument name="cuproducts" xsi:type="object">Camiloo\Channelunity\Model\Products\Proxy</argument>
+            <argument name="resource" xsi:type="object">Magento\Framework\App\ResourceConnection\Proxy</argument>
+            <argument name="state" xsi:type="object">Magento\Framework\App\State\Proxy</argument>
+            <argument name="storeManager" xsi:type="object">Magento\Store\Model\StoreManagerInterface\Proxy</argument>
+        </arguments>
+    </type>
 </config>

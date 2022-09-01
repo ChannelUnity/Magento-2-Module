@@ -119,36 +119,17 @@ class OrderPlacedObserver implements ObserverInterface
 
                 // ------ Update order status too (will only have an
                 // effect if this is a CU order) -----
-
-                $shipments = $order->getShipmentsCollection();
-                $carrierName = "";
-                $shipMethod = "";
-                $trackingNumber = "";
-
-                if ($shipments) {
-                    foreach ($shipments as $shipment) {
-                        $tracks = $shipment->getAllTracks();
-                        foreach ($tracks as $track) {
-                            $carrierName = $track->getCarrierCode();
-                            if ($carrierName == "custom") {
-                                $carrierName = $track->getTitle();
-                            }
-                            $shipMethod = $track->getTitle();
-                            $trackingNumber = $track->getNumber();
-                            break;
-                        }
-                        break;
-                    }
-                }
+                $tracksCollection = $order->getTracksCollection();
+                $trackingNumbers = $this->helper->getTrackingNumbers($tracksCollection);
+                
                 $cuxml = $this->orderModel->generateCuXmlForOrderShip(
                     $order,
-                    $carrierName,
-                    $shipMethod,
-                    $trackingNumber
+                    $trackingNumbers
                 );
                 if ($cuxml) {
                     $this->helper->postToChannelUnity($cuxml, 'OrderStatusUpdate');
                 }
+
             } else {
                 $this->helper->logError("!!!Order data not found!!!");
             }

@@ -69,7 +69,7 @@ class Index extends \Magento\Framework\App\Action\Action
      */
     public function execute()
     {
-        error_reporting(E_ALL);
+        error_reporting(E_WARNING);
         $xml = $this->getRequest()->getPost('xml');
         $testmode = $this->getRequest()->getPost('testmode') == 'yes';
         

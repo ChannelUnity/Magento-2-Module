@@ -197,8 +197,22 @@ class Orders extends AbstractModel
         return $orderXml;
     }
 
-    public function generateCuXmlForOrderShip($order, $carrierName, $shipMethod, $trackNumber)
+    public function generateCuXmlForOrderShip($order, $trackingNumbers)
     {
+        $carrierName = '';
+        $shipMethod = '';
+        $trackNumber = '';
+        $returnTrackingNumber = '';
+        
+        if (isset($trackingNumbers['Tracking'])) {
+            $carrierName = $trackingNumbers['Tracking']['CarrierName'];
+            $shipMethod = $trackingNumbers['Tracking']['ShipMethod'];
+            $trackNumber = $trackingNumbers['Tracking']['TrackingNumber'];
+            if (isset($trackingNumbers['ReturnTracking'])) {
+                $returnTrackingNumber = $trackingNumbers['ReturnTracking']['TrackingNumber'];
+            }
+        }
+        
         $orderXml = $this->generateCuXmlForOrderStatus($order);
 
         if (!empty($orderXml) && $order->getState() == 'complete') {
@@ -206,6 +220,7 @@ class Orders extends AbstractModel
             $orderXml .= "<CarrierName><![CDATA[$carrierName]]></CarrierName>\n";
             $orderXml .= "<ShipmentMethod><![CDATA[$shipMethod]]></ShipmentMethod>\n";
             $orderXml .= "<TrackingNumber><![CDATA[$trackNumber]]></TrackingNumber>\n";
+            $orderXml .= "<ReturnTrackingNumber><![CDATA[$returnTrackingNumber]]></ReturnTrackingNumber>\n";
         }
 
         return $orderXml;

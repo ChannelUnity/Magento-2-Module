@@ -73,7 +73,8 @@ class Products extends AbstractModel
             if ($attr != 'name' && $attr != 'description' && $attr != 'sku'
                     && $attr != 'price' && $attr != 'qty' && $attr != 'stock_item') {
                 $attrType = trim($attribute->getBackendType());
-                $friendlyName = trim($attribute->getFrontendLabel());
+                $feLabel = $attribute->getFrontendLabel();
+                $friendlyName = $feLabel != null ? trim($feLabel) : $attr;
 
                 $messageToSend .= "<Attribute><Name>$attr</Name><Type>$attrType</Type>
                     <FriendlyName><![CDATA[{$friendlyName}]]></FriendlyName></Attribute>\n";
@@ -181,13 +182,14 @@ class Products extends AbstractModel
         }
 
         $catids = implode(',', $product->getCategoryIds());
-
+        $prodPrice = $product->getData('price');
+        
         $productXml = "<Product>\n";
         $productXml .= "  <RemoteId>" . $product->getId() . "</RemoteId>\n";
         $productXml .= "  <Title><![CDATA[{$product->getName()} ]]></Title>\n";
         $productXml .= "  <Description><![CDATA[{$product->getData('description')} ]]></Description>\n";
         $productXml .= "  <SKU><![CDATA[{$product->getData('sku')}]]></SKU>\n";
-        $productXml .= "  <Price>" . number_format($product->getData('price'), 2, ".", "") . "</Price>\n";
+        $productXml .= "  <Price>" . ($prodPrice != null ? number_format($prodPrice, 2, ".", "") : '0.00') . "</Price>\n";
         $productXml .= "  <Quantity>{$qty}</Quantity>\n";
         $productXml .= "  <Category>{$catids}</Category>\n";
         $productXml .= "  <Image><![CDATA[{$imageUrl}]]></Image>\n";

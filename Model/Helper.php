@@ -157,7 +157,7 @@ class Helper extends \Magento\Framework\App\Helper\AbstractHelper
         libxml_use_internal_errors(true);
         $apikeyTemp = $this->getConfig('channelunityint/generalsettings/apikey');
 
-        if (strlen($apikeyTemp) == 0) {
+        if (!$apikeyTemp) {
             $xml = "<?xml version=\"1.0\" encoding=\"utf-8\" ?>\n";
             $xml .= "<ChannelUnity>\n";
 
@@ -418,5 +418,40 @@ XML;
         $objectManager = \Magento\Framework\App\ObjectManager::getInstance();
         $serializer = $objectManager->create(\Magento\Framework\Serialize\Serializer\Serialize::class);
         return $serializer->serialize($data);
-   }
+    }
+    
+    /**
+     * Extracts a tracking number and return tracking number from the given
+     * tracks collection.
+     * 
+     * @param type $tracksCollection
+     */
+    public function getTrackingNumbers($tracksCollection, $newTrack = null) {
+        $trkNumbers = [];
+        
+        if ($newTrack) {
+            $this->checkTrack($newTrack, $trkNumbers);
+        }
+        
+        foreach ($tracksCollection->getItems() as $track) {
+            $this->checkTrack($track, $trkNumbers);
+        }
+        return $trkNumbers;
+    }
+    
+    private function checkTrack($track, &$trkNumbers) {
+        $carrierName = $track->getCarrierCode();
+        if ($carrierName == "custom") {
+            $carrierName = $track->getTitle();
+        }
+        $shipMethod = $track->getTitle();
+        $trackingNumber = $track->getNumber();
+
+        $trackingType = strpos($shipMethod, 'Return') === 0 ? 'ReturnTracking' : 'Tracking';
+        $trkNumbers[$trackingType] = [
+            'TrackingNumber' => $trackingNumber,
+            'CarrierName' => $carrierName,
+            'ShipMethod' => str_replace('Return', '', $shipMethod)
+        ];
+    }
 }
