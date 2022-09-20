@@ -136,13 +136,13 @@ class Helper extends \Magento\Framework\App\Helper\AbstractHelper
     public function getValidUserAuth($user = null, $pass = null)
     {
         if ($user != null) {
-            $auth = $user . ":" . hash("sha256", $pass);
+            $auth = $user . ":" . hash("sha256", (string)$pass);
 
             $auth = base64_encode($auth);
             return $auth;
         } else {
             $auth = $this->getConfig('channelunityint/generalsettings/merchantusername')
-                    . ":" . hash("sha256", $this->getConfig('channelunityint/generalsettings/merchantpassword'));
+                    . ":" . hash("sha256", (string)$this->getConfig('channelunityint/generalsettings/merchantpassword'));
 
             $auth = base64_encode($auth);
             return $auth;

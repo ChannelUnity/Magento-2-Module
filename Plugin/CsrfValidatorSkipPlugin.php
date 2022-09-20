@@ -30,7 +30,8 @@ class CsrfValidatorSkipPlugin
         $request,
         $action
     ) {
-        if (strpos($request->getModuleName(), 'channelunity') !== false) {
+        $name = $request->getModuleName();
+        if ($name != null && strpos($name, 'channelunity') !== false) {
             $this->helper->logInfo("Skip CSRF check");
             return; // Skip CSRF check
         }
