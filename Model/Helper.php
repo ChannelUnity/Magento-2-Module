@@ -17,6 +17,7 @@ use Magento\Store\Model\StoreManagerInterface;
 use Magento\Config\Model\ResourceModel\Config;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\App\ProductMetadataInterface;
+use Magento\Framework\App\Config\Storage\WriterInterface;
 
 /**
  * Provides access to store settings, and cURL.
@@ -27,13 +28,15 @@ class Helper extends \Magento\Framework\App\Helper\AbstractHelper
     private $storeManager;
     private $config;
     private $productMetadata;
+    private $configWriter;
     
     public function __construct(
         Context $context,
         ZendClientFactory $httpClientFactory,
         StoreManagerInterface $storeManager,
         Config $config,
-        ProductMetadataInterface $productMetadata
+        ProductMetadataInterface $productMetadata,
+        WriterInterface $configWriter
     ) {
         
         parent::__construct($context);
@@ -41,6 +44,7 @@ class Helper extends \Magento\Framework\App\Helper\AbstractHelper
         $this->storeManager = $storeManager;
         $this->config = $config;
         $this->productMetadata = $productMetadata;
+        $this->configWriter = $configWriter;
     }
     
     public function getConfig($config)
@@ -59,7 +63,7 @@ class Helper extends \Magento\Framework\App\Helper\AbstractHelper
     {
         $client = $this->curlFactory->create();
         $client->setUri($url);
-        $client->setConfig(['timeout' => 5]);
+        $client->setConfig(['timeout' => 20, 'strictredirects' => true]);
         $client->setParameterPost($requestData);
         
         $responseBody = $client->request(\Zend_Http_Client::POST)->getBody();
@@ -178,6 +182,12 @@ class Helper extends \Magento\Framework\App\Helper\AbstractHelper
 
                 if (isset($xml->ApiKey)) {
                     $this->config->saveConfig(
+                        'channelunityint/generalsettings/apikey',
+                        $xml->ApiKey,
+                        'default',
+                        0
+                    );
+                    $this->configWriter->save(
                         'channelunityint/generalsettings/apikey',
                         $xml->ApiKey,
                         'default',
