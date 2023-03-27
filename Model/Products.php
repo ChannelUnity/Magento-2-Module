@@ -629,14 +629,21 @@ class Products extends AbstractModel
         if (isset($masterArray['type_id']) && $masterArray['type_id'] == 'bundle') {
             // Grab the bundle items from this product
             list($bundleProducts, $qtyInBundle) = $this->getProductBundleItems($product);
-            
+
             $qtyInBundleXml = "";
             foreach ($bundleProducts as $bunSKU) {
                 $qtyInBundleXml .= "\n<sku_config sku=\"$bunSKU\">\n";
                 $skuParts = explode("^", $bunSKU);
                 for ($i = 1; $i < count($skuParts); $i++) {
                     $currPart = $skuParts[$i];
-                    $qtyInBundleXml .= "\t<qty_in_bundle sku=\"$currPart\">{$qtyInBundle[$i][$currPart]}</qty_in_bundle>\n";
+                    $v = 0;
+                    array_walk_recursive($qtyInBundle, function($item, $key) use(&$v, $currPart) 
+                    {
+                        if ($key == $currPart) {
+                            $v = $item;
+                        }
+                    });
+                    $qtyInBundleXml .= "\t<qty_in_bundle sku=\"$currPart\">{$v}</qty_in_bundle>\n";
                 }
                 $qtyInBundleXml .= "</sku_config>";
             }
