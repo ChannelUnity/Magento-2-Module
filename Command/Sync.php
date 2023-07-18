@@ -37,6 +37,7 @@ class Sync extends Command
     private $helper;
     private $searchCriteriaBuilder;
     private $iterator;
+    private $stockItemRepository;
     private $stockItem;
     private $product;
     private $eavAttribute;

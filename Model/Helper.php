@@ -11,7 +11,7 @@
 namespace Camiloo\Channelunity\Model;
 
 use Magento\Framework\App\Helper\Context;
-use Magento\Framework\HTTP\ZendClientFactory;
+use Magento\Framework\HTTP\Client\Curl;
 use Magento\Store\Model\ScopeInterface;
 use Magento\Store\Model\StoreManagerInterface;
 use Magento\Config\Model\ResourceModel\Config;
@@ -24,7 +24,7 @@ use Magento\Framework\App\Config\Storage\WriterInterface;
  */
 class Helper extends \Magento\Framework\App\Helper\AbstractHelper
 {
-    private $curlFactory;
+    private $curlClient;
     private $storeManager;
     private $config;
     private $productMetadata;
@@ -32,7 +32,7 @@ class Helper extends \Magento\Framework\App\Helper\AbstractHelper
     
     public function __construct(
         Context $context,
-        ZendClientFactory $httpClientFactory,
+        Curl $curl,
         StoreManagerInterface $storeManager,
         Config $config,
         ProductMetadataInterface $productMetadata,
@@ -40,7 +40,7 @@ class Helper extends \Magento\Framework\App\Helper\AbstractHelper
     ) {
         
         parent::__construct($context);
-        $this->curlFactory = $httpClientFactory;
+        $this->curlClient = $curl;
         $this->storeManager = $storeManager;
         $this->config = $config;
         $this->productMetadata = $productMetadata;
@@ -61,12 +61,19 @@ class Helper extends \Magento\Framework\App\Helper\AbstractHelper
      */
     public function postRequest($url, $requestData)
     {
-        $client = $this->curlFactory->create();
-        $client->setUri($url);
-        $client->setConfig(['timeout' => 20, 'strictredirects' => true]);
-        $client->setParameterPost($requestData);
+        $client = $this->curlClient;
+        $client->post($url, $requestData);
+        $client->setOptions(
+            [
+                CURLOPT_CONNECTTIMEOUT => 20,
+                CURLOPT_TIMEOUT => 20,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_POSTREDIR => 7,
+            ]
+        );
+        $responseBody = $client->getBody();
         
-        $responseBody = $client->request(\Zend_Http_Client::POST)->getBody();
         return $responseBody;
     }
     
