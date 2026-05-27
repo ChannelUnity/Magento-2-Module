@@ -10,72 +10,108 @@
 
 namespace Camiloo\Channelunity\Model;
 
+use Magento\Framework\Model\Context;
 use Magento\Framework\Registry;
+use Magento\Framework\Api\ExtensionAttributesFactory;
+use Magento\Framework\Api\AttributeValueFactory;
+use Magento\Payment\Helper\Data as PaymentData;
+use Magento\Framework\App\Config\ScopeConfigInterface;
+use Magento\Payment\Model\Method\Logger;
 use Camiloo\Channelunity\Helper\Helper;
+
 /**
- * Payment method for ChannelUnity.
+ * Internal-only payment method for orders imported by ChannelUnity.
+ * This method is never shown to customers on the frontend; it is made
+ * available exclusively when the cu_order_in_progress registry flag is set.
  */
 class Channelunitypayment extends \Magento\Payment\Model\Method\AbstractMethod
 {
     /**
-     * Payment code
-     *
+     * Payment method code
      * @var string
      */
     protected $_code = 'channelunitypayment';
 
     /**
-     * Availability option
-     *
+     * This is an offline (no gateway) payment method
      * @var bool
      */
     protected $_isOffline = true;
-    
+
+    /**
+     * @var Registry
+     */
     private $registry;
-    
-    private $helper;
-    
+
+    /**
+     * @var Helper
+     */
+    private $cuHelper;
+
     public function __construct(
+        Context $context,
         Registry $registry,
-        Helper $helper
+        ExtensionAttributesFactory $extensionFactory,
+        AttributeValueFactory $customAttributeFactory,
+        PaymentData $paymentData,
+        ScopeConfigInterface $scopeConfig,
+        Logger $logger,
+        Helper $cuHelper
     ) {
         $this->registry = $registry;
-        $this->helper = $helper;
+        $this->cuHelper = $cuHelper;
+
+        parent::__construct(
+            $context,
+            $registry,
+            $extensionFactory,
+            $customAttributeFactory,
+            $paymentData,
+            $scopeConfig,
+            $logger
+        );
     }
-    
+
     /**
-     * We don't want this payment method available on the front end website
-     * during checkout.
-     * @param \Magento\Quote\Api\Data\CartInterface $quote
-     * @return type
+     * Only allow this payment method when a CU order import is in progress.
+     *
+     * @param \Magento\Quote\Api\Data\CartInterface|null $quote
+     * @return bool
      */
-    public function isAvailable(
-        \Magento\Quote\Api\Data\CartInterface $quote = null
-    ) {
-        $this->helper->logInfo("Channelunitypayment isAvailable");
-        
+    public function isAvailable(\Magento\Quote\Api\Data\CartInterface $quote = null)
+    {
+        $this->cuHelper->logInfo("Channelunitypayment isAvailable");
+
         $cuOrder = $this->registry->registry('cu_order_in_progress');
-        $this->helper->logInfo("Channelunitypayment cu_order_in_progress $cuOrder");
+        $this->cuHelper->logInfo("Channelunitypayment cu_order_in_progress $cuOrder");
 
         return $cuOrder == 1;
     }
-    
+
     /**
-     * Overriden from base class otherwise there is a crash in the base class.
-     * @param type $field
-     * @param type $storeId
-     * @return type
+     * Read payment config values via the CU helper so we avoid relying on
+     * AbstractMethod's scopeConfig instance being set up before this is called.
+     *
+     * @param string $field
+     * @param int|null $storeId
+     * @return mixed
      */
     public function getConfigData($field, $storeId = null)
     {
         $path = 'payment/' . $this->getCode() . '/' . $field;
-        $value = $this->helper->getConfig($path);
-        
-        $this->helper->logInfo("Channelunitypayment getConfigData $field -> $value");
-        
+        $value = $this->cuHelper->getConfig($path);
+
+        $this->cuHelper->logInfo("Channelunitypayment getConfigData $field -> $value");
+
         return $value;
     }
-    
+
+    /**
+     * No additional data to assign for this internal payment method.
+     *
+     * @param \Magento\Framework\DataObject $data
+     * @return $this
+     */
     public function assignData(\Magento\Framework\DataObject $data)
     {
         return $this;
