@@ -368,6 +368,9 @@ class Orders extends AbstractModel
             foreach ($itemArray as $product) {
                 $product->setPrice($productPrice);
                 $product->setSpecialPrice($productPrice);
+                $product->setCustomPrice($productPrice);
+                $product->setOriginalCustomPrice($productPrice);
+                $product->setIsSuperMode(true);
                 $product->setName($item->Name);
 
                 $productParameters = $this->dataObjectFactory->create();

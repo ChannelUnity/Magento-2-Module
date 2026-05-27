@@ -138,21 +138,21 @@ class Sync extends Command
 
         // Highly efficient raw SQL query to grab stock/price in bulk
         $select = $this->stockItem->getConnection()
-            ->select()
-            ->from(['t1' => $this->stockItem->getMainTable()])
-            ->join(
-                ['t2' => $this->product->getEntityTable()],
-                't1.product_id = t2.entity_id'
-            )
-            ->join(
-                ['t3' => $tableName],
-                't1.product_id = t3.' . $decColName
-            )
-            ->where('t1.product_id > ?', $this->lastSyncProd)
-            ->where('t3.attribute_id = ?', $attributeId)
-            ->where('t3.store_id = ?', 0)
-            ->order('t1.product_id')
-            ->limit(1000);
+                ->select()
+                ->from(['t1' => $this->stockItem->getMainTable()])
+                ->join(
+                    ['t2' => $this->product->getEntityTable()],
+                    't1.product_id = t2.entity_id'
+                )
+                ->join(
+                    ['t3' => $tableName],
+                    't2.'.$decColName.' = t3.'.$decColName
+                )
+                ->where('t1.product_id > ?', $this->lastSyncProd)
+                ->where('t3.attribute_id = ?', $attributeId)
+                ->where('t3.store_id = ?', 0)
+                ->order('t1.product_id')
+                ->limit(1000);
 
         $this->lastSyncProd = 0;
         $this->iterator->walk($select, [[$this, 'productCallback']]);
