@@ -262,7 +262,7 @@ class Orders extends AbstractModel
                 ->setFirstname($firstNameS)
                 ->setLastname($lastNameS)
                 ->setEmail($emailAddress)
-                ->setPassword(uniqid());
+                ->setPassword(bin2hex(random_bytes(16)));
             $customer->save();
         }
 

@@ -12,6 +12,7 @@ namespace Camiloo\Channelunity\Model;
 
 use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\Framework\Registry;
+use Camiloo\Channelunity\Helper\Helper;
 use Magento\Shipping\Model\Carrier\AbstractCarrier;
 use Magento\Shipping\Model\Carrier\CarrierInterface;
 use Magento\Shipping\Model\Rate\ResultFactory;

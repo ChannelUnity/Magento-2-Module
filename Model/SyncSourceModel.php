@@ -10,7 +10,7 @@
 
 namespace Camiloo\Channelunity\Model;
 
-class SyncSourceModel implements \Magento\Framework\Option\ArrayInterface
+class SyncSourceModel implements \Magento\Framework\Data\OptionSourceInterface
 {
     
     /**
