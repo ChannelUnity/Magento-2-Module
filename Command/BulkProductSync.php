@@ -13,7 +13,7 @@ namespace Camiloo\Channelunity\Command;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
-use Camiloo\Channelunity\Model\Helper;
+use Camiloo\Channelunity\Helper\Helper;
 use Camiloo\Channelunity\Model\Products;
 use Magento\Framework\App\ResourceConnection;
 use Magento\Framework\App\State;

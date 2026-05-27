@@ -255,8 +255,6 @@ class Orders extends AbstractModel
 
         $this->logOrderImportHistory((string) $order->OrderId, (int) $dataArray->SubscriptionId);
 
-        $this->logOrderImportHistory((string) $order->OrderId, (int) $dataArray->SubscriptionId);
-
         $store = $this->storeManager->getStore((int) $dataArray->StoreviewId);
         $conversionRate = null;
         $forceTax = $this->helper->forceTaxValues();

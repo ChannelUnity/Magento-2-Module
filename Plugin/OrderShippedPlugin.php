@@ -16,7 +16,7 @@
 
 namespace Camiloo\Channelunity\Plugin;
 
-use \Camiloo\Channelunity\Model\Helper;
+use \Camiloo\Channelunity\Helper\Helper;
 use \Camiloo\Channelunity\Model\Orders;
 
 /**

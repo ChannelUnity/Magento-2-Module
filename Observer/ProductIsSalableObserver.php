@@ -20,7 +20,7 @@ use \Magento\Framework\Event\Observer;
 use \Magento\Framework\App\RequestInterface;
 use \Magento\Store\Model\StoreManagerInterface;
 use \Magento\Catalog\Api\ProductRepositoryInterface;
-use \Camiloo\Channelunity\Model\Helper;
+use \Camiloo\Channelunity\Helper\Helper;
 use \Camiloo\Channelunity\Model\Products;
 use \Magento\Framework\Registry;
 

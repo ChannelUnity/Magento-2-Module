@@ -14,7 +14,7 @@ namespace Camiloo\Channelunity\Command;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
-use Camiloo\Channelunity\Model\Helper;
+use Camiloo\Channelunity\Helper\Helper;
 use Magento\Framework\Model\ResourceModel\Iterator;
 use Magento\CatalogInventory\Model\ResourceModel\Stock\Item;
 use Magento\Catalog\Model\ResourceModel\Product;

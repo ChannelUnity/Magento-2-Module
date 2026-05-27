@@ -30,7 +30,7 @@
 
     <type name="Camiloo\Channelunity\Command\Sync">
         <arguments>
-            <argument name="helper" xsi:type="object">Camiloo\Channelunity\Model\Helper\Proxy</argument>
+            <argument name="helper" xsi:type="object">Camiloo\Channelunity\Helper\Helper\Proxy</argument>
             <argument name="iterator" xsi:type="object">Magento\Framework\Model\ResourceModel\Iterator\Proxy</argument>
             <argument name="stockItem" xsi:type="object">Magento\CatalogInventory\Model\ResourceModel\Stock\Item\Proxy</argument>
             <argument name="product" xsi:type="object">Magento\Catalog\Model\ResourceModel\Product\Proxy</argument>
@@ -42,7 +42,7 @@
 
     <type name="Camiloo\Channelunity\Command\SyncProducts">
         <arguments>
-            <argument name="helper" xsi:type="object">Camiloo\Channelunity\Model\Helper\Proxy</argument>
+            <argument name="helper" xsi:type="object">Camiloo\Channelunity\Helper\Helper\Proxy</argument>
             <argument name="cuproducts" xsi:type="object">Camiloo\Channelunity\Model\Products\Proxy</argument>
             <argument name="state" xsi:type="object">Magento\Framework\App\State\Proxy</argument>
         </arguments>
@@ -58,7 +58,7 @@
 
     <type name="Camiloo\Channelunity\Command\BulkProductSync">
         <arguments>
-            <argument name="helper" xsi:type="object">Camiloo\Channelunity\Model\Helper\Proxy</argument>
+            <argument name="helper" xsi:type="object">Camiloo\Channelunity\Helper\Helper\Proxy</argument>
             <argument name="cuproducts" xsi:type="object">Camiloo\Channelunity\Model\Products\Proxy</argument>
             <argument name="resource" xsi:type="object">Magento\Framework\App\ResourceConnection\Proxy</argument>
             <argument name="state" xsi:type="object">Magento\Framework\App\State\Proxy</argument>

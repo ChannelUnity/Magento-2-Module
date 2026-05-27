@@ -2,7 +2,7 @@
 
 namespace Camiloo\Channelunity\Plugin;
 
-use \Camiloo\Channelunity\Model\Helper;
+use \Camiloo\Channelunity\Helper\Helper;
 
 /**
  * There is a setting in Magento (Configuration -> Catalog -> Inventory)

@@ -14,7 +14,7 @@ namespace Camiloo\Channelunity\Observer;
 use Magento\Framework\Event\ObserverInterface;
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Registry;
-use Camiloo\Channelunity\Model\Helper;
+use Camiloo\Channelunity\Helper\Helper;
 use Camiloo\Channelunity\Model\Orders;
 
 /**

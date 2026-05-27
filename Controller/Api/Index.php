@@ -14,7 +14,7 @@ use Camiloo\Channelunity\Model\Products;
 use Camiloo\Channelunity\Model\Orders;
 use Camiloo\Channelunity\Model\Refunds;
 use Camiloo\Channelunity\Model\Stores;
-use Camiloo\Channelunity\Model\Helper;
+use Camiloo\Channelunity\Helper\Helper;
 use Camiloo\Channelunity\Model\Categories;
 use Camiloo\Channelunity\Model\Customers;
 use Magento\Framework\App\Action\Context;

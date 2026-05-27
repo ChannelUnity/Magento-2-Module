@@ -11,7 +11,7 @@
 
 namespace Camiloo\Channelunity\Plugin;
 
-use Camiloo\Channelunity\Model\Helper;
+use Camiloo\Channelunity\Helper\Helper;
 use Magento\Catalog\Api\ProductRepositoryInterface;
 use Magento\Framework\Registry;
 use Magento\CatalogInventory\Model\Stock\Item;

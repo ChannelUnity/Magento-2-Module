@@ -43,7 +43,7 @@ class Custom extends \Magento\Backend\Block\Template
         \Magento\Sales\Helper\Data $salesData,
         \Magento\Framework\Registry $registry,
         \Magento\Sales\Helper\Admin $adminHelper,
-        \Camiloo\Channelunity\Model\Helper $helper,
+        \Camiloo\Channelunity\Helper\Helper $helper,
         array $data = []
     ) {
         $this->_coreRegistry = $registry;
