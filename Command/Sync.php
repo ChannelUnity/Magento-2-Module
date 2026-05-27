@@ -5,7 +5,7 @@
  *
  * @category   Camiloo
  * @package    Camiloo_Channelunity
- * @copyright  Copyright (c) 2016 ChannelUnity Limited (http://www.channelunity.com)
+ * @copyright  Copyright (c) 2016-2024 ChannelUnity Limited (http://www.channelunity.com)
  * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -15,15 +15,13 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Camiloo\Channelunity\Model\Helper;
-use Camiloo\Channelunity\Model\Products;
-use Magento\Framework\Api\SearchCriteriaBuilder;
-use Magento\CatalogInventory\Model\Stock\StockItemRepository;
 use Magento\Framework\Model\ResourceModel\Iterator;
 use Magento\CatalogInventory\Model\ResourceModel\Stock\Item;
 use Magento\Catalog\Model\ResourceModel\Product;
 use Magento\Eav\Model\ResourceModel\Entity\Attribute;
 use Magento\Framework\App\ResourceConnection;
 use Magento\Framework\Module\Manager;
+use Magento\Framework\Console\Cli;
 
 /**
  * Sends stock and price information for each SKU in the Magento catalog to CU.
@@ -31,25 +29,19 @@ use Magento\Framework\Module\Manager;
  */
 class Sync extends Command
 {
-    private $buffer;
-    private $lastSyncProd;
-    private $cuproducts;
+    private $buffer = "";
+    private $lastSyncProd = 0;
     private $helper;
-    private $searchCriteriaBuilder;
     private $iterator;
-    private $stockItemRepository;
     private $stockItem;
     private $product;
     private $eavAttribute;
     private $resource;
     private $moduleManager;
     private $contentStaging;
-    
+
     public function __construct(
         Helper $helper,
-        Products $cuproducts,
-        SearchCriteriaBuilder $searchCriteriaBuilder,
-        StockItemRepository $stockItemRepository,
         Iterator $iterator,
         Item $stockItem,
         Product $product,
@@ -59,47 +51,44 @@ class Sync extends Command
     ) {
         parent::__construct();
         $this->helper = $helper;
-        $this->cuproducts = $cuproducts;
-        $this->searchCriteriaBuilder = $searchCriteriaBuilder;
-        $this->stockItemRepository = $stockItemRepository;
         $this->iterator = $iterator;
         $this->stockItem = $stockItem;
         $this->product = $product;
         $this->eavAttribute = $eavAttribute;
         $this->resource = $resource;
-        $this->buffer = "";
-        $this->lastSyncProd = 0;
         $this->moduleManager = $moduleManager;
     }
-    
+
     /**
      * {@inheritdoc}
      */
     protected function configure()
     {
         $this->setName('channelunity:sync_stock_and_price')
-            ->setDescription('Sync all products\' stock and price levels to ChannelUnity');
+            ->setDescription("Sync all products' stock and price levels to ChannelUnity");
         parent::configure();
     }
 
     /**
      * {@inheritdoc}
      */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $this->runSyncNow($output);
+
+        return Cli::RETURN_SUCCESS;
     }
-    
+
     private function runSyncNow($output)
-    {   
+    {
         $this->contentStaging = $this->moduleManager->isEnabled('Magento_CatalogStaging');
-        
+
         do {
             $this->buffer = "";
-            
+
             // Get a block of products with SKU, qty, price
             $this->fullstockpricemessageAction();
-            
+
             if ($this->buffer) {
                 // Get the URL of the store
                 $sourceUrl = $this->helper->getBaseUrl();
@@ -107,7 +96,7 @@ class Sync extends Command
                 $xml = "<Products>
                         <SourceURL>{$sourceUrl}</SourceURL>
                         <StoreViewId>0</StoreViewId>
-                        <Data><![CDATA[ ".rtrim($this->buffer)." ]]></Data>
+                        <Data><![CDATA[ " . rtrim($this->buffer) . " ]]></Data>
                         </Products>";
 
                 $this->helper->logInfo($xml);
@@ -124,14 +113,18 @@ class Sync extends Command
                 }
             }
         } while ($this->lastSyncProd > 0);
-        // Loop while more products to synchronise
     }
 
-    public function productCallback($args)
+    /**
+     * Callback function for the Iterator walker.
+     * Needs to remain public to be callable by Iterator::walk.
+     */
+    public function productCallback(array $args)
     {
         $qtyStock = $args['row']['qty'];
         $row = $args['row']['sku'] . "," . (int)($qtyStock) . "," . $args['row']['value'] . "*\n";
         $this->buffer .= $row;
+
         $decColName = $this->contentStaging ? 'row_id' : 'entity_id';
         $this->lastSyncProd = $args['row'][$decColName];
     }
@@ -142,7 +135,8 @@ class Sync extends Command
         $attributeId = $this->eavAttribute->getIdByCode('catalog_product', 'price');
         $tableName = $this->resource->getTableName('catalog_product_entity_decimal');
         $decColName = $this->contentStaging ? 'row_id' : 'entity_id';
-        
+
+        // Highly efficient raw SQL query to grab stock/price in bulk
         $select = $this->stockItem->getConnection()
                 ->select()
                 ->from(['t1' => $this->stockItem->getMainTable()])
@@ -163,33 +157,30 @@ class Sync extends Command
         $this->lastSyncProd = 0;
         $this->iterator->walk($select, [[$this, 'productCallback']]);
     }
-    
+
     //======================= Cron commands =================================//
-    
+
     public function every15Minutes()
     {
         if ($this->helper->getSyncOption() == 1) {
-            // User has set it to every 15 minutes
             $this->helper->logInfo("CRON: Sync job is active");
             $this->runSyncNow(null);
         }
         return $this;
     }
-    
+
     public function everyHour()
     {
         if ($this->helper->getSyncOption() == 2) {
-            // User has set it to every hour
             $this->helper->logInfo("CRON: Sync job is active");
             $this->runSyncNow(null);
         }
         return $this;
     }
-    
+
     public function everyDay()
     {
         if ($this->helper->getSyncOption() == 3) {
-            // User has set it to every day
             $this->helper->logInfo("CRON: Sync job is active");
             $this->runSyncNow(null);
         }

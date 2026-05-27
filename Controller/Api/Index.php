@@ -4,7 +4,7 @@
  *
  * @category   Camiloo
  * @package    Camiloo_Channelunity
- * @copyright  Copyright (c) 2016-2017 ChannelUnity Limited (http://www.channelunity.com)
+ * @copyright  Copyright (c) 2016-2024 ChannelUnity Limited (http://www.channelunity.com)
  * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -20,25 +20,27 @@ use Camiloo\Channelunity\Model\Customers;
 use Magento\Framework\App\Action\Context;
 use Magento\Framework\Controller\ResultFactory;
 use Magento\Framework\Registry;
+use Magento\Framework\App\CsrfAwareActionInterface;
+use Magento\Framework\App\Request\InvalidRequestException;
+use Magento\Framework\App\RequestInterface;
 
 /**
  * Endpoint for the ChannelUnity module.
  * http://<URL>/channelunity/api/index
  *
- * This module is tested with the following versions of Magento 2:
- * 2.0.7, 2.1.7, 2.2.3
+ * This module is tested with Magento 2.x
  */
-class Index extends \Magento\Framework\App\Action\Action
+class Index extends \Magento\Framework\App\Action\Action implements CsrfAwareActionInterface
 {
     private $helper;
-    private $cuproducts = null;
-    private $cuorders = null;
-    private $curefunds = null;
-    private $custores = null;
-    private $cucategories = null;
-    private $cucustomers = null;
-    private $rawResultFactory = null;
-    private $registry = null;
+    private $cuproducts;
+    private $cuorders;
+    private $curefunds;
+    private $custores;
+    private $cucategories;
+    private $cucustomers;
+    private $rawResultFactory;
+    private $registry;
 
     public function __construct(
         Context $context,
@@ -64,29 +66,46 @@ class Index extends \Magento\Framework\App\Action\Action
     }
 
     /**
+     * Bypasses CSRF validation for this API endpoint.
+     * Required for Magento 2.3+ compatibility with external POST requests.
+     */
+    public function createCsrfValidationException(RequestInterface $request): ?InvalidRequestException
+    {
+        return null;
+    }
+
+    /**
+     * Confirms that CSRF validation should be skipped for this API endpoint.
+     * Required for Magento 2.3+ compatibility.
+     */
+    public function validateForCsrf(RequestInterface $request): ?bool
+    {
+        return true;
+    }
+
+    /**
      * This is the main API endpoint for the connector module.
      * It will verify the request then pass it onto the relevant model.
      */
     public function execute()
     {
-        error_reporting(E_WARNING);
         $xml = $this->getRequest()->getPost('xml');
         $testmode = $this->getRequest()->getPost('testmode') == 'yes';
-        
+
         $result = $this->rawResultFactory->create(ResultFactory::TYPE_RAW);
         $result->setHeader('Content-Type', 'text/xml');
 
-        if (!isset($xml)) {
+        if (empty($xml)) {
             $str = $this->terminate("Error - could not find XML within request");
         } else {
             try {
                 $str = $this->doApiProcess(urldecode($xml), $testmode);
             } catch (\Exception $e) {
-                $str = $this->terminate("Error - doApiProcess - ".$e->getMessage());
-                
-                $this->helper->logError($e->getMessage()."-".$e->getTraceAsString());
+                $str = $this->terminate("Error - doApiProcess - " . $e->getMessage());
+                $this->helper->logError($e->getMessage() . " - " . $e->getTraceAsString());
             }
         }
+
         $result->setContents($str);
         return $result;
     }
@@ -98,16 +117,22 @@ class Index extends \Magento\Framework\App\Action\Action
     private function terminate($message)
     {
         $str = '<?xml version="1.0" encoding="utf-8" ?>';
-        $str .= '	<ChannelUnity>';
-        $str .= '        <Status>' . $message . '</Status>';
-        $str .= '  </ChannelUnity>';
+        $str .= '<ChannelUnity>';
+        $str .= '<Status><![CDATA[' . $message . ']]></Status>';
+        $str .= '</ChannelUnity>';
+
         return $str;
     }
 
     private function doApiProcess($xmlRaw, $testMode = false)
     {
+        libxml_use_internal_errors(true);
         $xml = simplexml_load_string($xmlRaw, 'SimpleXMLElement', LIBXML_NOCDATA);
-        
+
+        if ($xml === false) {
+            throw new \Exception("Invalid XML payload received");
+        }
+
         if (!$testMode) {
             $payload = trim((string) $xml->Notification->Payload);
 
@@ -120,13 +145,13 @@ class Index extends \Magento\Framework\App\Action\Action
         } else {
             $request = $xml->Notification->Payload;
         }
-        
+
         // RequestHeader contains the request type
         $type = (string) $xml->Notification->Type;
 
         $str = '<?xml version="1.0" encoding="utf-8" ?>';
-        $str .= '	<ChannelUnity>';
-        $str .= '    <RequestType>' . $type . '</RequestType>';
+        $str .= '<ChannelUnity>';
+        $str .= '<RequestType>' . $type . '</RequestType>';
 
         switch ($type) {
             case "Ping":
@@ -140,16 +165,15 @@ class Index extends \Magento\Framework\App\Action\Action
             case "OrderNotification":
                 $str .= $this->cuorders->doUpdate($request);
                 break;
-            
-            case "PartialRefundNotification":{
-                
+
+            case "PartialRefundNotification":
                 $this->registry->unregister('cu_partial_refund');
                 $this->registry->register('cu_partial_refund', 'active');
+
                 $str .= $this->curefunds->partialRefund($request);
-                
+
                 $this->registry->unregister('cu_partial_refund');
                 break;
-            }
 
             case "ProductData":
                 $this->cuproducts->postAttributesToCU();
@@ -162,7 +186,7 @@ class Index extends \Magento\Framework\App\Action\Action
 
             case "CartDataRequest":
                 // get URL out of the CartDataRequest
-                $myStoreURL = $xml->Notification->URL;
+                $myStoreURL = (string) $xml->Notification->URL;
                 $storeStatus = $this->custores->postStoresToCU($myStoreURL);
                 $categoryStatus = $this->cucategories->postCategoriesToCU($myStoreURL);
                 $attributeStatus = $this->cuproducts->postAttributesToCU();
@@ -170,46 +194,61 @@ class Index extends \Magento\Framework\App\Action\Action
                 $str .= "<StoreStatus>$storeStatus</StoreStatus>";
                 $str .= "<CategoryStatus>$categoryStatus</CategoryStatus>";
                 $str .= "<ProductAttributeStatus>$attributeStatus</ProductAttributeStatus>";
-
                 break;
-            
+
             case "ValidateCustomerDetails":
                 $customerData = $this->cucustomers->validateCustomer(
-                    $request->WebsiteId, $request->EmailAddress, $request->Password);
-                
+                    $request->WebsiteId,
+                    $request->EmailAddress,
+                    $request->Password
+                );
                 $str .= $customerData;
                 break;
-            
+
             case "CreateCustomerAccount":
-                $customerId = $this->cucustomers->createCustomer($request->WebsiteId, 
-                        $request->EmailAddress, $request->Password, 
-                        $request->FirstName, $request->LastName);
+                $customerId = $this->cucustomers->createCustomer(
+                    $request->WebsiteId,
+                    $request->EmailAddress,
+                    $request->Password,
+                    $request->FirstName,
+                    $request->LastName
+                );
                 $str .= "<CustomerID>$customerId</CustomerID>";
                 break;
-            
+
             case "ResetCustomerPassword":
                 $this->cucustomers->resetPassword($request->EmailAddress);
                 $str .= "<Status>OK</Status>";
                 break;
-            
+
             case "GetCustomerOrders":
                 try {
                     $limit = isset($request->Limit) ? (int)$request->Limit : 200;
                     $offset = isset($request->Offset) ? (int)$request->Offset : 0;
-                    
-                    $str .= $this->cucustomers->getOrdersByCustomerAsXML($request->WebsiteId, 
-                        $request->EmailAddress, $request->Password, $limit, $offset);
-                    
+
+                    $str .= $this->cucustomers->getOrdersByCustomerAsXML(
+                        $request->WebsiteId,
+                        $request->EmailAddress,
+                        $request->Password,
+                        $limit,
+                        $offset
+                    );
+
                     $str .= "<Status>OK</Status>";
+                } catch (\Exception $e) {
+                    $str .= "<Status>Error - " . $e->getMessage() . "</Status>";
                 }
-                catch (\Exception $e) {
-                    $str .= "<Status>Error - ".$e->getMessage()."</Status>";
+                break;
+
+            default:
+                // Handle unknown request types safely
+                if (!empty($type)) {
+                    $str .= "<Status>Error - Unrecognized RequestType: $type</Status>";
                 }
-                
                 break;
         }
 
-        $str .= '  </ChannelUnity>';
+        $str .= '</ChannelUnity>';
         return $str;
     }
 }

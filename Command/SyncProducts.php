@@ -4,7 +4,7 @@
  *
  * @category   Camiloo
  * @package    Camiloo_Channelunity
- * @copyright  Copyright (c) 2016-2017 ChannelUnity Limited (http://www.channelunity.com)
+ * @copyright  Copyright (c) 2016-2024 ChannelUnity Limited (http://www.channelunity.com)
  * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -16,6 +16,8 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Camiloo\Channelunity\Model\Helper;
 use Camiloo\Channelunity\Model\Products;
 use Magento\Framework\App\State;
+use Magento\Framework\Console\Cli;
+use Magento\Framework\Exception\LocalizedException;
 
 /**
  * Sends full product information for each SKU in the Magento catalog to CU.
@@ -26,7 +28,7 @@ class SyncProducts extends Command
     private $cuproducts;
     private $helper;
     private $state;
-    
+
     public function __construct(
         Helper $helper,
         Products $cuproducts,
@@ -44,30 +46,41 @@ class SyncProducts extends Command
     protected function configure()
     {
         $this->setName('channelunity:sync_products')
-            ->setDescription('Sync products\' data to ChannelUnity');
+            ->setDescription("Sync products' data to ChannelUnity");
         parent::configure();
     }
 
     /**
      * {@inheritdoc}
      */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $this->state->setAreaCode("global");
-        $request = new \stdClass;
+        // Safely set area code. If it is already set by the CLI bootstrapper, ignore the exception.
+        try {
+            $this->state->setAreaCode(\Magento\Framework\App\Area::AREA_GLOBAL);
+        } catch (LocalizedException $e) {
+            // Area code is already set, we can safely proceed.
+        }
+
+        $request = new \stdClass();
         $request->RangeFrom = 0;
         $request->StoreviewId = 0;
-        
+
         do {
             $xml = $this->cuproducts->doRead($request, true);
             $request->RangeFrom = $this->cuproducts->getRangeNext();
+
             $this->helper->logInfo($xml);
             $output->writeln($xml);
-        
+
             // Send to ChannelUnity
             $response = $this->helper->postToChannelUnity($xml, 'ProductData');
+
             $this->helper->logInfo($response);
             $output->writeln($response);
+
         } while ($request->RangeFrom > 0);
+
+        return Cli::RETURN_SUCCESS;
     }
 }

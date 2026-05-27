@@ -4,7 +4,7 @@
  *
  * @category   Camiloo
  * @package    Camiloo_Channelunity
- * @copyright  Copyright (c) 2016-2017 ChannelUnity Limited (http://www.channelunity.com)
+ * @copyright  Copyright (c) 2016-2024 ChannelUnity Limited (http://www.channelunity.com)
  * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -25,13 +25,13 @@ use Psr\Log\LoggerInterface;
  */
 class Customrate extends AbstractCarrier implements CarrierInterface
 {
-
     /**
      * Carrier's code
      *
      * @var string
      */
     protected $_code = 'cucustomrate';
+
     /**
      * Whether this carrier has fixed rates calculation
      *
@@ -43,27 +43,22 @@ class Customrate extends AbstractCarrier implements CarrierInterface
      * @var ResultFactory
      */
     protected $_rateResultFactory;
+
     /**
      * @var MethodFactory
      */
     protected $_rateMethodFactory;
-    
+
     /**
-     *
      * @var Registry
      */
     private $registry;
-    
-    private $helper;
-    
+
     /**
-     * @param ScopeConfigInterface $scopeConfig
-     * @param ErrorFactory $rateErrorFactory
-     * @param LoggerInterface $logger
-     * @param ResultFactory $rateResultFactory
-     * @param MethodFactory $rateMethodFactory
-     * @param array $data
+     * @var Helper
      */
+    private $helper;
+
     public function __construct(
         ScopeConfigInterface $scopeConfig,
         ErrorFactory $rateErrorFactory,
@@ -81,49 +76,58 @@ class Customrate extends AbstractCarrier implements CarrierInterface
         $this->helper = $helper;
     }
 
+    /**
+     * Collect and get rates
+     *
+     * @param RateRequest $request
+     * @return \Magento\Shipping\Model\Rate\Result
+     */
     public function collectRates(RateRequest $request)
     {
         // Check if we are getting the rate for a CU request.
-        // to do this, the easiest way is to check for some form
-        // of CU data incoming.
-        
         $cuOrderCheck = $this->registry->registry('cu_order_in_progress');
-        if ($cuOrderCheck == 1) {
-            $marketplaceShippingMethod = $this->registry->registry('cu_shipping_method');
-            
-            /** @var \Magento\Shipping\Model\Rate\Result $result */
-            $result = $this->_rateResultFactory->create();
-            
-            $shippingPrice = $this->registry->registry('cu_shipping_price');
-            
-            $method = $this->_rateMethodFactory->create();
-            /**
-             * Set carrier's method data
-             */
-            $method->setCarrier($this->getCarrierCode());
-            $method->setCarrierTitle($this->getConfigData('title'));
-            
-            $cuPrimeCheck = $this->registry->registry('cu_prime_order');
-            if ($cuPrimeCheck == 1) {
-                $method->setCarrierTitle('Prime Shipping');
-            }
-            
-            /**
-             * Displayed as shipping method under Carrier
-             */
-            $method->setMethod($this->getCarrierCode());
-            $method->setMethodTitle($marketplaceShippingMethod);
-            $method->setPrice($shippingPrice);
-            $method->setCost($shippingPrice);
-            $result->append($method);
-            
-            return $result;
-        } else {
+
+        // IMPORTANT: If this is not a CU order, we must return false immediately
+        // so this internal shipping method doesn't leak into the standard frontend checkout.
+        if ($cuOrderCheck != 1) {
             return false;
         }
+
+        // Safely fetch registry values with fallbacks
+        $marketplaceShippingMethod = $this->registry->registry('cu_shipping_method') ?: 'ChannelUnity Shipping';
+        $shippingPrice = (float) $this->registry->registry('cu_shipping_price') ?: 0.00;
+
+        /** @var \Magento\Shipping\Model\Rate\Result $result */
+        $result = $this->_rateResultFactory->create();
+
+        /** @var \Magento\Quote\Model\Quote\Address\RateResult\Method $method */
+        $method = $this->_rateMethodFactory->create();
+
+        $method->setCarrier($this->getCarrierCode());
+
+        $cuPrimeCheck = $this->registry->registry('cu_prime_order');
+        if ($cuPrimeCheck == 1) {
+            $method->setCarrierTitle('Prime Shipping');
+        } else {
+            $method->setCarrierTitle($marketplaceShippingMethod);
+        }
+
+        $method->setMethod($this->getCarrierCode());
+        $method->setMethodTitle($marketplaceShippingMethod);
+        $method->setPrice($shippingPrice);
+        $method->setCost($shippingPrice);
+
+        $result->append($method);
+
+        return $result;
     }
 
-    public function getAllowedMethods()
+    /**
+     * Get allowed shipping methods
+     *
+     * @return array
+     */
+    public function getAllowedMethods(): array
     {
         return [$this->getCarrierCode() => $this->getConfigData('name')];
     }

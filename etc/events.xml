@@ -1,7 +1,6 @@
 <?xml version="1.0"?>
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:Event/etc/events.xsd">
-    
-    <!-- Product related observers -->
+
     <event name="catalog_product_save_after">
         <observer name="SaveProduct" instance="Camiloo\Channelunity\Observer\SaveProductObserver" />
     </event>
@@ -14,32 +13,25 @@
     <event name="controller_action_postdispatch_catalog_product_action_attribute_save">
         <observer name="SaveProductAttributes" instance="Camiloo\Channelunity\Observer\SaveProductObserver" />
     </event>
-    <!-- Support Wyomind -->
+
     <event name="massupdateimport_success">
         <observer name="MassUpdateSuccess" instance="Camiloo\Channelunity\Observer\MassUpdateObserver" />
     </event>
-    
-    <!--
-    Doesn't work unless on Magento 2.2+
-    <event name="cataloginventory_stock_item_save_after">
-        <observer name="SaveQuantity" instance="Camiloo\Channelunity\Observer\SaveQuantityObserver" />
-    </event>-->
+
     <event name="catalog_product_delete_after_done">
         <observer name="DeleteProduct" instance="Camiloo\Channelunity\Observer\DeleteProductObserver" />
     </event>
     <event name="catalog_product_is_salable_after">
         <observer name="ProductIsSalableAfter" instance="Camiloo\Channelunity\Observer\ProductIsSalableObserver" />
     </event>
-    
-    <!-- Order related observers -->
+
     <event name="sales_order_save_after">
         <observer name="OrderSave" instance="Camiloo\Channelunity\Observer\OrderPlacedObserver" />
     </event>
     <event name="sales_order_creditmemo_refund">
         <observer name="OrderRefund" instance="Camiloo\Channelunity\Observer\OrderRefundedObserver" />
     </event>
-    
-    <!-- Category and stores -->
+
     <event name="catalog_category_save_after">
         <observer name="SaveCategory" instance="Camiloo\Channelunity\Observer\SaveCategoryObserver" />
     </event>

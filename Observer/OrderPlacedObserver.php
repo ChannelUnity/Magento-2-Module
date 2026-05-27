@@ -1,52 +1,48 @@
 <?php
-
 /**
  * ChannelUnity connector for Magento Commerce
  *
  * @category   Camiloo
  * @package    Camiloo_Channelunity
- * @copyright  Copyright (c) 2016 ChannelUnity Limited (http://www.channelunity.com)
+ * @copyright  Copyright (c) 2016-2024 ChannelUnity Limited (http://www.channelunity.com)
  * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
+
+namespace Camiloo\Channelunity\Observer;
+
+use Magento\Framework\Event\ObserverInterface;
+use Magento\Framework\Event\Observer;
+use Magento\CatalogInventory\Api\StockRegistryInterface;
+use Camiloo\Channelunity\Model\Helper;
+use Camiloo\Channelunity\Model\Orders;
 
 /**
  * ChannelUnity observers.
  * Posts events to the CU cloud when various Magento events occur.
  */
-
-namespace Camiloo\Channelunity\Observer;
-
-use \Magento\Framework\Event\ObserverInterface;
-use \Magento\Framework\Event\Observer;
-use \Magento\Store\Model\StoreManagerInterface;
-use \Magento\CatalogInventory\Model\Stock\StockItemRepository;
-use \Magento\CatalogInventory\Api\StockRegistryInterface;
-use \Camiloo\Channelunity\Model\Products;
-use \Camiloo\Channelunity\Model\Helper;
-use \Camiloo\Channelunity\Model\Orders;
-
 class OrderPlacedObserver implements ObserverInterface
 {
+    /**
+     * @var Helper
+     */
     private $helper;
-    private $productModel;
-    private $storeManager;
-    private $stockItemRepository;
+
+    /**
+     * @var StockRegistryInterface
+     */
     private $stockRegistry;
+
+    /**
+     * @var Orders
+     */
     private $orderModel;
-    
+
     public function __construct(
         Helper $helper,
-        Products $product,
-        StoreManagerInterface $storeManager,
-        StockItemRepository $stockItemRepository,
         StockRegistryInterface $stockRegistry,
         Orders $orders
     ) {
-    
         $this->helper = $helper;
-        $this->productModel = $product;
-        $this->storeManager = $storeManager;
-        $this->stockItemRepository = $stockItemRepository;
         $this->stockRegistry = $stockRegistry;
         $this->orderModel = $orders;
     }
@@ -54,57 +50,53 @@ class OrderPlacedObserver implements ObserverInterface
     public function execute(Observer $observer)
     {
         try {
-            $this->helper->logInfo("Observer called: ".$observer->getEvent()->getName());
-            $order = $observer->getOrder();
+            $event = $observer->getEvent();
+            $this->helper->logInfo("Observer called: " . $event->getName());
+
+            // Extract the order safely depending on the event trigger
+            $order = $event->getOrder();
             if (!$order) {
-                $invoice = $observer->getInvoice();
-                if (is_object($invoice)) {
+                $invoice = $event->getInvoice();
+                if ($invoice && $invoice->getOrder()) {
                     $order = $invoice->getOrder();
                 }
             }
             if (!$order) {
-                $creditmemo = $observer->getCreditmemo();
-                if (is_object($creditmemo)) {
+                $creditmemo = $event->getCreditmemo();
+                if ($creditmemo && $creditmemo->getOrder()) {
                     $order = $creditmemo->getOrder();
                 }
             }
 
-            if (is_object($order)) {
+            if ($order && $order->getId()) {
                 $itemsOnOrder = $order->getAllItems();
-
                 $updates = [];
 
                 foreach ($itemsOnOrder as $item) {
-                    // Send updates for these products to ChannelUnity
-                    // The only thing that will have changed is the qty
-                    // so may as well send a product data lite call
                     $product = $item->getProduct();
-                    if (!$product) {
+
+                    // Skip if product doesn't exist or doesn't have an ID
+                    if (!$product || !$product->getId()) {
                         continue;
                     }
 
                     $productId = $product->getId();
-                    $psku = $product->getData('sku');
+                    $psku = $product->getSku();
 
                     $this->helper->logInfo("OrderPlacedObserver. Product ID $productId SKU $psku");
 
                     try {
-                        $stock = $this->stockItemRepository->get($productId);
-                        $pqty = $stock->getData('qty');
-                    } catch (\Exception $e) {
-                        $this->helper->logInfo("OrderPlacedObserver error ".$e->getMessage());
-                        // Stock Item with id "****" does not exist
+                        // StockRegistryInterface is the correct way to get stock in M2.1+
                         $stock = $this->stockRegistry->getStockItem($productId);
-                        $pqty = $stock->getQty();
+                        $pqty = (float) $stock->getQty();
+                        $updates[] = "$psku,$pqty,";
+                    } catch (\Exception $e) {
+                        $this->helper->logError("OrderPlacedObserver stock error for PID $productId: " . $e->getMessage());
                     }
-
-                    $updates[] = "$psku,$pqty,";
                 }
 
-                if ($updates) {
+                if (!empty($updates)) {
                     $updatesToSend = implode("*\n", $updates);
-
-                    // Get the URL of the store
                     $sourceUrl = $this->helper->getBaseUrl();
 
                     $xml = "<Products>
@@ -114,28 +106,24 @@ class OrderPlacedObserver implements ObserverInterface
                             </Products>";
 
                     // Send to ChannelUnity
-                    $response = $this->helper->postToChannelUnity($xml, 'ProductDataLite');
+                    $this->helper->postToChannelUnity($xml, 'ProductDataLite');
                 }
 
-                // ------ Update order status too (will only have an
-                // effect if this is a CU order) -----
+                // Update order status if applicable
                 $tracksCollection = $order->getTracksCollection();
                 $trackingNumbers = $this->helper->getTrackingNumbers($tracksCollection);
-                
-                $cuxml = $this->orderModel->generateCuXmlForOrderShip(
-                    $order,
-                    $trackingNumbers
-                );
+
+                $cuxml = $this->orderModel->generateCuXmlForOrderShip($order, $trackingNumbers);
                 if ($cuxml) {
                     $this->helper->postToChannelUnity($cuxml, 'OrderStatusUpdate');
                 }
 
             } else {
-                $this->helper->logError("!!!Order data not found!!!");
+                $this->helper->logError("OrderPlacedObserver: Order data not found in event.");
             }
-        }
-        catch (\Exception $e2) {
-            $this->helper->logError("OrderPlacedObserver general error ".$e2->getMessage());
+        } catch (\Exception $e) {
+            // NEVER throw exceptions here, it will crash the customer checkout
+            $this->helper->logError("OrderPlacedObserver general error: " . $e->getMessage());
         }
     }
 }

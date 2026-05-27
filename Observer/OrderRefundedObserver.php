@@ -1,117 +1,121 @@
 <?php
 
-
 /**
  * ChannelUnity connector for Magento Commerce
  *
  * @category   Camiloo
  * @package    Camiloo_Channelunity
- * @copyright  Copyright (c) 2016 ChannelUnity Limited (http://www.channelunity.com)
+ * @copyright  Copyright (c) 2016-2026 ChannelUnity Limited (http://www.channelunity.com)
  * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
+
+namespace Camiloo\Channelunity\Observer;
+
+use Magento\Framework\Event\ObserverInterface;
+use Magento\Framework\Event\Observer;
+use Magento\Framework\Registry;
+use Camiloo\Channelunity\Model\Helper;
+use Camiloo\Channelunity\Model\Orders;
 
 /**
  * ChannelUnity observers.
  * Posts events to the CU cloud when various Magento events occur.
  */
-
-namespace Camiloo\Channelunity\Observer;
-
-use \Magento\Framework\Event\ObserverInterface;
-use \Magento\Framework\Event\Observer;
-use \Magento\Framework\Registry;
-use \Magento\Sales\Api\CreditmemoRepositoryInterface;
-use \Camiloo\Channelunity\Model\Helper;
-use \Camiloo\Channelunity\Model\Orders;
-
 class OrderRefundedObserver implements ObserverInterface
 {
-    private $helper;
-    private $orderModel;
-    private $registry;
     /**
-     * @var CreditmemoRepositoryInterface
+     * @var Helper
      */
-    private $creditmemoRepository;
+    private $helper;
+
+    /**
+     * @var Orders
+     */
+    private $orderModel;
+
+    /**
+     * @var Registry
+     */
+    private $registry;
 
     public function __construct(
         Helper $helper,
         Orders $orders,
-        Registry $registry,
-        CreditmemoRepositoryInterface $creditmemoRepository
+        Registry $registry
     ) {
         $this->helper = $helper;
         $this->orderModel = $orders;
         $this->registry = $registry;
-        $this->creditmemoRepository = $creditmemoRepository;
     }
-    
+
     public function execute(Observer $observer)
     {
-        $this->helper->logInfo("Observer called: ".$observer->getEvent()->getName());
-        if ($this->registry->registry('cu_partial_refund') == 'active') {
-            // log and return
-            $this->helper->logInfo("Skip observer as we have incoming refund");
-            return;
-        }
-        
-        $creditMemo = $observer->getData('creditmemo');
-        if (is_object($creditMemo)) {
-            $mageOrder = $creditMemo->getOrder();
-            $orderStatus = $mageOrder->getStatus();
-            $this->helper->logInfo("We have a credit memo. Order status: $orderStatus");
-            
-            $crMemoTotal = $creditMemo->getGrandTotal();
-            $orderTotal = $mageOrder->getGrandTotal();
-            
-            // Only want this to be called if we are doing a PARTIAL cancellation
-            if ($crMemoTotal < $orderTotal) {
-                $this->helper->logInfo("Credit memo total $crMemoTotal is less than order total $orderTotal, doing partial cancellation");
-                
-                // Load the credit memo again just incase the SKUs are missing
-                $creditmemoId = $creditMemo->getEntityId();
-                // Ensure we have a valid ID!
-                if ($creditmemoId) {
-                    $this->helper->logInfo("Load credit memo ID {$creditmemoId}");
-                    $newCreditMemo = $this->creditmemoRepository->get($creditmemoId);
-                    $this->helper->logInfo("Is credit memo loaded: " . (is_object($newCreditMemo) ? "yes" : "no"));
+        try {
+            $this->helper->logInfo("Observer called: " . $observer->getEvent()->getName());
 
-                    $this->doRefund($newCreditMemo, $mageOrder);
-                }
-                else {
+            // Prevent infinite loops if this refund was triggered by ChannelUnity itself
+            if ($this->registry->registry('cu_partial_refund') === 'active') {
+                $this->helper->logInfo("Skip observer as we have incoming refund from API.");
+                return;
+            }
+
+            $creditMemo = $observer->getEvent()->getCreditmemo();
+
+            if ($creditMemo && $creditMemo->getId()) {
+                $mageOrder = $creditMemo->getOrder();
+                $orderStatus = $mageOrder->getStatus();
+                $this->helper->logInfo("We have a credit memo. Order status: $orderStatus");
+
+                $crMemoTotal = (float) $creditMemo->getGrandTotal();
+                $orderTotal = (float) $mageOrder->getGrandTotal();
+
+                // Only want this to be called if we are doing a PARTIAL cancellation
+                if ($crMemoTotal < $orderTotal) {
+                    $this->helper->logInfo("Credit memo total $crMemoTotal is less than order total $orderTotal, doing partial cancellation.");
+
+                    // Proceed directly with the in-memory object (safe, prevents database deadlocks)
                     $this->doRefund($creditMemo, $mageOrder);
+                } else {
+                    $this->helper->logInfo("Credit memo total $crMemoTotal is NOT less than order total $orderTotal, skipping partial cancellation.");
                 }
             }
-            else {
-                $this->helper->logInfo("Credit memo total $crMemoTotal is NOT less than order total $orderTotal, skipping partial cancellation");
-            }
+        } catch (\Exception $e) {
+            // Catch all exceptions to prevent Magento's refund process from crashing
+            $this->helper->logError("Failed to process ChannelUnity refund sync: " . $e->getMessage());
         }
     }
-    
+
+    /**
+     * Extracts items and totals from the credit memo and sends to CU API.
+     * * @param \Magento\Sales\Model\Order\Creditmemo $creditMemo
+     * @param \Magento\Sales\Model\Order $mageOrder
+     */
     private function doRefund($creditMemo, $mageOrder)
     {
         $partialActionItems = [];
 
         // Get items out of the credit memo
         $items = $creditMemo->getItems();
-        
-        // Collect all partial action items as required by CU API
-        // Each item is a \Magento\Sales\Api\Data\CreditmemoItemInterface
-        foreach ($items as $item) {
-            $amount = $item->getRowTotalInclTax();
-            $sku = $item->getSku();
-            $qty = $item->getQty();
 
-            $partialActionItems[] = [
-                "Action" => "Refund",
-                "Amount" => $amount,
-                "SKU" => $sku,
-                "QtyAffected" => $qty
-            ];
+        // Collect all partial action items as required by CU API
+        foreach ($items as $item) {
+            $amount = (float) $item->getRowTotalInclTax();
+            $sku = $item->getSku();
+            $qty = (float) $item->getQty();
+
+            // Skip items with zero qty (e.g., shipping-only refunds or bundled parent items)
+            if ($qty > 0) {
+                $partialActionItems[] = [
+                    "Action"      => "Refund",
+                    "Amount"      => $amount,
+                    "SKU"         => $sku,
+                    "QtyAffected" => $qty
+                ];
+            }
         }
 
         // Get shipment refund
-        $shippingAmount = $creditMemo->getShippingAmount();
+        $shippingAmount = (float) $creditMemo->getShippingAmount();
 
         // Send to CU
         $cuXml = $this->orderModel->generateCuXmlForPartialAction(
@@ -119,10 +123,11 @@ class OrderRefundedObserver implements ObserverInterface
             $partialActionItems,
             $shippingAmount
         );
+
         if ($cuXml) {
             $this->helper->postToChannelUnity($cuXml, 'DoPartialAction');
         } else {
-            $this->helper->logInfo("Not a CU order");
+            $this->helper->logInfo("Not a ChannelUnity order. Skipping refund sync.");
         }
     }
 }

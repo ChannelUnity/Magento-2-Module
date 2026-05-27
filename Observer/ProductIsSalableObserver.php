@@ -55,7 +55,7 @@ class ProductIsSalableObserver implements ObserverInterface
         if ($isCuOrder) {
             $this->helper->logInfo("Observer called: ProductIsSalableObserver");
         
-            $observer->getSalable()->setIsSalable(true);
+         //   $observer->getSalable()->setIsSalable(true);
         }
     }
 

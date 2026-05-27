@@ -4,7 +4,7 @@
  *
  * @category   Camiloo
  * @package    Camiloo_Channelunity
- * @copyright  Copyright (c) 2016-2017 ChannelUnity Limited (http://www.channelunity.com)
+ * @copyright  Copyright (c) 2016-2024 ChannelUnity Limited (http://www.channelunity.com)
  * @license    http://opensource.org/licenses/osl-3.0.php  Open Software License (OSL 3.0)
  */
 
@@ -12,25 +12,33 @@ namespace Camiloo\Channelunity\Model;
 
 use Magento\Framework\Model\AbstractModel;
 use Magento\Catalog\Model\ResourceModel\Category\CollectionFactory;
-use Magento\Catalog\Helper\Category;
 use Magento\Store\Model\StoreManagerInterface;
+use Camiloo\Channelunity\Helper\Data;
 
 class Categories extends AbstractModel
 {
+    /**
+     * @var Helper
+     */
     private $helper;
+
+    /**
+     * @var CollectionFactory
+     */
     private $categoryCollectionFactory;
-    private $categoryHelper;
+
+    /**
+     * @var StoreManagerInterface
+     */
     private $storeManager;
 
     public function __construct(
-        Helper $helper,
+        Data $helper,
         CollectionFactory $categoryCollectionFactory,
-        Category $categoryHelper,
         StoreManagerInterface $storeManager
     ) {
         $this->helper = $helper;
         $this->categoryCollectionFactory = $categoryCollectionFactory;
-        $this->categoryHelper = $categoryHelper;
         $this->storeManager = $storeManager;
     }
 
@@ -45,41 +53,39 @@ class Categories extends AbstractModel
         $rootCatId,
         $storeViewId
     ) {
-        $messageToSend = "";
-
-        // Load in this root category and enumerate all children
-        $collection = $this->categoryCollectionFactory->create();
-        $collection->addAttributeToSelect('*');
-
-        // need to be able to link categories up to the right source/store in CU.
-
-        $messageToSend .= "<CategoryList>
+        $messageToSend = "<CategoryList>
             <URL><![CDATA[{$urlTemp}]]></URL>
             <FrameworkType><![CDATA[{$frameworkType}]]></FrameworkType>
             <WebsiteId><![CDATA[{$websiteId}]]></WebsiteId>
             <StoreId><![CDATA[{$storeId}]]></StoreId>
             <StoreviewId><![CDATA[{$storeViewId}]]></StoreviewId>\n";
 
-        foreach ($collection as $category) {
-            $catPathTemp = $category->getData('path');
-            
-            $startOfPath = strpos($catPathTemp, "$rootCatId/");
-            $middleOfPath = strpos($catPathTemp, "/$rootCatId/");
-            $endOfPath = strpos($catPathTemp, "/$rootCatId");
-            $endLen = strlen($catPathTemp) - strlen("/$rootCatId");
+        // Load collection highly optimized
+        $collection = $this->categoryCollectionFactory->create();
+        $collection->setStoreId($storeViewId);
 
-            if ($startOfPath === 0     // start of path
-                    || $middleOfPath > 0   // middle of path
-                    || $endOfPath == $endLen) { // OR at END of path
-                $messageToSend .= "<Category>\n";
-                $messageToSend .= "  <ID><![CDATA[{$category->getId()}]]></ID>\n";
-                $messageToSend .= "  <Name><![CDATA[{$category->getName()}]]></Name>\n";
-                $messageToSend .= "  <Position><![CDATA[{$category->getData('position')}]]></Position>\n";
-                $messageToSend .= "  <CategoryPath><![CDATA[{$catPathTemp}]]></CategoryPath>\n";
-                $messageToSend .= "  <ParentID><![CDATA[{$category->getData('parent_id')}]]></ParentID>\n";
-                $messageToSend .= "  <Level><![CDATA[{$category->getData('level')}]]></Level>\n";
-                $messageToSend .= "</Category>\n\n";
-            }
+        // Only load the specific EAV attributes we need to save memory
+        $collection->addAttributeToSelect('name');
+
+        // Filter by path directly in the database (replaces the PHP strpos loop)
+        $collection->addFieldToFilter('path', [
+            ['like' => $rootCatId . '/%'],         // Start of path
+            ['like' => '%/' . $rootCatId . '/%'],  // Middle of path
+            ['like' => '%/' . $rootCatId],         // End of path
+            ['eq' => (string) $rootCatId]          // Exact match
+        ]);
+
+        foreach ($collection as $category) {
+            $catName = $category->getName() ?: 'Unknown'; // Fallback for empty names
+
+            $messageToSend .= "<Category>\n";
+            $messageToSend .= "  <ID><![CDATA[{$category->getId()}]]></ID>\n";
+            $messageToSend .= "  <Name><![CDATA[{$catName}]]></Name>\n";
+            $messageToSend .= "  <Position><![CDATA[{$category->getPosition()}]]></Position>\n";
+            $messageToSend .= "  <CategoryPath><![CDATA[{$category->getPath()}]]></CategoryPath>\n";
+            $messageToSend .= "  <ParentID><![CDATA[{$category->getParentId()}]]></ParentID>\n";
+            $messageToSend .= "  <Level><![CDATA[{$category->getLevel()}]]></Level>\n";
+            $messageToSend .= "</Category>\n\n";
         }
 
         $messageToSend .= "</CategoryList>";
@@ -89,28 +95,22 @@ class Categories extends AbstractModel
 
     public function postCategoriesToCU($urlTemp)
     {
-        $messageToSend = '';
-        
+        $finalStatus = "OK";
         $websites = $this->storeManager->getWebsites();
 
-        // For each store view ...
         foreach ($websites as $website) {
-            $websiteId = $website->getData('website_id');
-
-            // Get all 'store groups'
+            $websiteId = $website->getId();
             $stores = $website->getGroups();
-            
-            foreach ($stores as $storeGroup) {
-                // Get the root category ID ...
 
-                $rootCatId = $storeGroup->getData('root_category_id');
-                $storeGroupId = $storeGroup->getData('group_id');
+            foreach ($stores as $storeGroup) {
+                $rootCatId = $storeGroup->getRootCategoryId();
+                $storeGroupId = $storeGroup->getId();
                 $storeViews = $storeGroup->getStores();
 
                 foreach ($storeViews as $storeView) {
                     $frameworkType = "Magento";
-                    $storeViewId = $storeView->getData('store_id');
-                    
+                    $storeViewId = $storeView->getId();
+
                     $messageToSend = $this->enumerateCategoriesForStoreView(
                         $urlTemp,
                         $frameworkType,
@@ -119,18 +119,25 @@ class Categories extends AbstractModel
                         $rootCatId,
                         $storeViewId
                     );
+
                     $result = $this->helper->postToChannelUnity($messageToSend, "CategoryData");
-                    $xml = simplexml_load_string($result, 'SimpleXMLElement', LIBXML_NOCDATA);
+
+                    if ($result) {
+                        $xml = simplexml_load_string($result, 'SimpleXMLElement', LIBXML_NOCDATA);
+
+                        // Capture any errors, otherwise keep "OK"
+                        if (isset($xml->Status) && (string)$xml->Status !== "OK") {
+                            $finalStatus = (string)$xml->Status;
+                        } elseif (isset($xml->status) && (string)$xml->status !== "OK") {
+                            $finalStatus = (string)$xml->status;
+                        }
+                    } else {
+                        $finalStatus = "Error - unexpected response";
+                    }
                 }
             }
         }
 
-        if (isset($xml->Status)) {
-            return $xml->Status;
-        } elseif (isset($xml->status)) {
-            return $xml->status;
-        } else {
-            return "Error - unexpected response";
-        }
+        return $finalStatus;
     }
 }
