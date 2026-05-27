@@ -12,6 +12,7 @@ namespace Camiloo\Channelunity\Model;
 
 use Magento\Framework\Model\AbstractModel;
 use Magento\Framework\Registry;
+use Camiloo\Channelunity\Helper\Helper;
 use Magento\Framework\Data\Form\FormKey;
 use Magento\Store\Model\StoreManagerInterface;
 use Magento\Catalog\Model\Product;

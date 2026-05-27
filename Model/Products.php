@@ -19,7 +19,7 @@ use Magento\Catalog\Model\ProductFactory;
 use Magento\CatalogInventory\Api\StockRegistryInterface;
 use Magento\Catalog\Api\ProductRepositoryInterface;
 use Magento\Catalog\Model\Product\Attribute\Source\Status;
-use Camiloo\Channelunity\Helper\Data;
+use Camiloo\Channelunity\Helper\Helper;
 
 /**
  * Converts Magento product data into ChannelUnity formatted product data.
@@ -40,7 +40,7 @@ class Products extends AbstractModel
     private $currentStore;
 
     public function __construct(
-        Data $helper,
+        Helper $helper,
         Product $product,
         StoreManagerInterface $storeManager,
         Iterator $iterator,

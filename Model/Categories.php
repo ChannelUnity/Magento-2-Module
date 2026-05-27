@@ -13,7 +13,7 @@ namespace Camiloo\Channelunity\Model;
 use Magento\Framework\Model\AbstractModel;
 use Magento\Catalog\Model\ResourceModel\Category\CollectionFactory;
 use Magento\Store\Model\StoreManagerInterface;
-use Camiloo\Channelunity\Helper\Data;
+use Camiloo\Channelunity\Helper\Helper;
 
 class Categories extends AbstractModel
 {
@@ -33,7 +33,7 @@ class Categories extends AbstractModel
     private $storeManager;
 
     public function __construct(
-        Data $helper,
+        Helper $helper,
         CollectionFactory $categoryCollectionFactory,
         StoreManagerInterface $storeManager
     ) {

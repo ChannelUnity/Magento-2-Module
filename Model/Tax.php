@@ -11,6 +11,7 @@
 namespace Camiloo\Channelunity\Model;
 
 use Magento\Framework\Registry;
+use Camiloo\Channelunity\Helper\Helper;
 
 /**
  * To force in our own tax values to imported orders.

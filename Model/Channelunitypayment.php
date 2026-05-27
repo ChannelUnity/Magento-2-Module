@@ -11,7 +11,7 @@
 namespace Camiloo\Channelunity\Model;
 
 use Magento\Framework\Registry;
-use Camiloo\Channelunity\Helper\Data;
+use Camiloo\Channelunity\Helper\Helper;
 /**
  * Payment method for ChannelUnity.
  */
@@ -37,7 +37,7 @@ class Channelunitypayment extends \Magento\Payment\Model\Method\AbstractMethod
     
     public function __construct(
         Registry $registry,
-        Data $helper
+        Helper $helper
     ) {
         $this->registry = $registry;
         $this->helper = $helper;

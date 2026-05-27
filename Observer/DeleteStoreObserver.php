@@ -19,7 +19,6 @@ namespace Camiloo\Channelunity\Observer;
 use Camiloo\Channelunity\Helper\Helper;
 use \Magento\Framework\Event\ObserverInterface;
 use \Magento\Framework\Event\Observer;
-use Camiloo\Channelunity\Helper\Data;
 
 class DeleteStoreObserver implements ObserverInterface
 {
