@@ -13,20 +13,15 @@ namespace Camiloo\Channelunity\Model;
 use Magento\Framework\Model\AbstractModel;
 use Magento\Framework\Registry;
 use Camiloo\Channelunity\Helper\Helper;
-use Magento\Framework\Data\Form\FormKey;
 use Magento\Store\Model\StoreManagerInterface;
 use Magento\Catalog\Model\Product;
 use Magento\Catalog\Model\ProductFactory;
-use Magento\Quote\Model\QuoteFactory;
-use Magento\Quote\Model\QuoteManagement;
 use Magento\Quote\Model\Quote\Address\Rate;
 use Magento\Quote\Api\CartRepositoryInterface;
 use Magento\Quote\Api\CartManagementInterface;
 use Magento\Customer\Model\CustomerFactory;
 use Magento\Customer\Api\CustomerRepositoryInterface;
 use Magento\CatalogInventory\Api\StockRegistryInterface;
-use Magento\CatalogInventory\Model\ResourceModel\Stock\Item;
-use Magento\Sales\Model\Service\OrderService;
 use Magento\Sales\Model\Service\InvoiceService;
 use Magento\Sales\Model\Order\Payment\Transaction;
 use Magento\Sales\Model\OrderRepository;
@@ -47,14 +42,9 @@ class Orders extends AbstractModel
     private $registry;
     private $customerFactory;
     private $customerRepository;
-    private $quote;
-    private $quoteManagement;
     private $transaction;
-    private $orderService;
     private $storeManager;
-    private $formkey;
     private $helper;
-    private $stockItemResource;
     private $stockRegistry;
     private $cartRepositoryInterface;
     private $productRepository;
@@ -78,14 +68,9 @@ class Orders extends AbstractModel
         Registry $registry,
         StoreManagerInterface $storeManager,
         Product $product,
-        FormKey $formkey,
-        QuoteFactory $quote,
-        QuoteManagement $quoteManagement,
         CustomerFactory $customerFactory,
         CustomerRepositoryInterface $customerRepository,
-        OrderService $orderService,
         Transaction $transaction,
-        Item $stockItemResource,
         StockRegistryInterface $stockRegistry,
         CartRepositoryInterface $cartRepositoryInterface,
         ProductRepositoryInterface $productRepository,
@@ -107,14 +92,9 @@ class Orders extends AbstractModel
         $this->registry = $registry;
         $this->storeManager = $storeManager;
         $this->product = $product;
-        $this->formkey = $formkey;
-        $this->quote = $quote;
-        $this->quoteManagement = $quoteManagement;
         $this->customerFactory = $customerFactory;
         $this->customerRepository = $customerRepository;
-        $this->orderService = $orderService;
         $this->transaction = $transaction;
-        $this->stockItemResource = $stockItemResource;
         $this->stockRegistry = $stockRegistry;
         $this->cartRepositoryInterface = $cartRepositoryInterface;
         $this->productRepository = $productRepository;
@@ -287,12 +267,8 @@ class Orders extends AbstractModel
         }
 
         $this->helper->logInfo("Creating quote");
-        if (version_compare($this->helper->getMagentoVersion(), '2.1.0') >= 0) {
-            $cartId = $this->cartManagementInterface->createEmptyCart();
-            $quote = $this->cartRepositoryInterface->get($cartId);
-        } else {
-            $quote = $this->quote->create();
-        }
+        $cartId = $this->cartManagementInterface->createEmptyCart();
+        $quote = $this->cartRepositoryInterface->get($cartId);
 
         $quote->setStore($store);
         $customerEntityId = $customer->getEntityId();
@@ -325,9 +301,7 @@ class Orders extends AbstractModel
         $this->registry->unregister('cu_shipping_tax');
         $this->registry->register('cu_shipping_tax', (float) $shippingInfo->ShippingTax);
 
-        if (version_compare($this->helper->getMagentoVersion(), '2.1.0') >= 0) {
-            $quote->save();
-        }
+        $quote->save();
 
         $itemSeq = 1;
         foreach ($order->OrderItems->Item as $item) {
@@ -501,10 +475,6 @@ class Orders extends AbstractModel
         $quote->setPaymentMethod('channelunitypayment');
         $quote->setInventoryProcessed($this->bIsInventoryProcessed);
 
-        if (version_compare($this->helper->getMagentoVersion(), '2.1.0') < 0) {
-            $quote->save();
-        }
-
         $quote->getPayment()->importData(['method' => 'channelunitypayment']);
         $quote->getPayment()->setAdditionalInformation([
             'subscription_id' => (string) $dataArray->SubscriptionId,
@@ -512,24 +482,16 @@ class Orders extends AbstractModel
             'order_flags' => (string) $order->OrderFlags
         ]);
 
-        if (version_compare($this->helper->getMagentoVersion(), '2.1.0') >= 0) {
-            $quote->collectTotals();
-        } else {
-            $quote->collectTotals()->save();
-        }
+        $quote->collectTotals();
 
         $this->helper->logInfo("doCreate: Now submitting order");
 
         // --- CRITICAL FIX: Wrap submission in try/catch to log Magento validation errors ---
         $newOrder = null;
         try {
-            if (is_object($this->cartManagementInterface) && version_compare($this->helper->getMagentoVersion(), '2.1.0') >= 0) {
-                $this->cartRepositoryInterface->save($quote);
-                $quote = $this->cartRepositoryInterface->get($quote->getId());
-                $newOrder = $this->cartManagementInterface->submit($quote);
-            } else {
-                $newOrder = $this->quoteManagement->submit($quote);
-            }
+            $this->cartRepositoryInterface->save($quote);
+            $quote = $this->cartRepositoryInterface->get($quote->getId());
+            $newOrder = $this->cartManagementInterface->submit($quote);
         } catch (\Exception $e) {
             $msg = $e->getMessage();
             $this->helper->logError("Quote Submission Failed for Order {$orderId}: " . $msg);
