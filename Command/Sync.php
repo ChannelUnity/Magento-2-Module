@@ -152,7 +152,7 @@ class Sync extends Command
                 )
                 ->join(
                     ['t3' => $tableName],
-                    't1.product_id = t3.'.$decColName
+                    't2.'.$decColName.' = t3.'.$decColName
                 )
                 ->where('t1.product_id > ?', $this->lastSyncProd)
                 ->where('t3.attribute_id = ?', $attributeId)
