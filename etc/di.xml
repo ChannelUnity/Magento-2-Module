@@ -4,6 +4,15 @@
     <preference for="Magento\Tax\Model\Sales\Total\Quote\Tax" type="Camiloo\Channelunity\Model\Tax" />
     <preference for="Magento\CatalogInventory\Observer\ItemsForReindex" type="Camiloo\Channelunity\Model\ItemsForReindex" />
 
+    <!-- Sync the ChannelUnity source channel from sales_order into sales_order_grid -->
+    <virtualType name="Magento\Sales\Model\ResourceModel\Order\Grid" type="Magento\Sales\Model\ResourceModel\Grid">
+        <arguments>
+            <argument name="columns" xsi:type="array">
+                <item name="channelunity_channel" xsi:type="string">sales_order.channelunity_channel</item>
+            </argument>
+        </arguments>
+    </virtualType>
+
     <type name="Magento\Sales\Model\Order\Shipment">
         <plugin name="ShipmentTracking" type="Camiloo\Channelunity\Plugin\OrderShippedPlugin" sortOrder="1" />
     </type>
@@ -24,6 +33,7 @@
                 <item name="sync_products_command" xsi:type="object">Camiloo\Channelunity\Command\SyncProducts</item>
                 <item name="delete_orders_command" xsi:type="object">Camiloo\Channelunity\Command\DeleteOrders</item>
                 <item name="sync_bulk_command" xsi:type="object">Camiloo\Channelunity\Command\BulkProductSync</item>
+                <item name="backfill_order_channels_command" xsi:type="object">Camiloo\Channelunity\Command\BackfillOrderChannels</item>
             </argument>
         </arguments>
     </type>
@@ -63,6 +73,13 @@
             <argument name="resource" xsi:type="object">Magento\Framework\App\ResourceConnection\Proxy</argument>
             <argument name="state" xsi:type="object">Magento\Framework\App\State\Proxy</argument>
             <argument name="storeManager" xsi:type="object">Magento\Store\Model\StoreManagerInterface\Proxy</argument>
+        </arguments>
+    </type>
+
+    <type name="Camiloo\Channelunity\Command\BackfillOrderChannels">
+        <arguments>
+            <argument name="resource" xsi:type="object">Magento\Framework\App\ResourceConnection\Proxy</argument>
+            <argument name="helper" xsi:type="object">Camiloo\Channelunity\Helper\Helper\Proxy</argument>
         </arguments>
     </type>
 </config>

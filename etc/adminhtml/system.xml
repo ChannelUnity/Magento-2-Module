@@ -59,6 +59,12 @@
                     <label>Enable Logging</label>
                     <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
                 </field>
+                <field id="channelnames" translate="label" sortOrder="65" showInDefault="1" showInWebsite="0" showInStore="0">
+                    <label>Order Channel Display Names</label>
+                    <frontend_model>Camiloo\Channelunity\Block\Adminhtml\Form\Field\SubscriptionMapping</frontend_model>
+                    <backend_model>Magento\Config\Model\Config\Backend\Serialized\ArraySerialized</backend_model>
+                    <comment><![CDATA[Give each ChannelUnity channel a friendly name to show in the Orders grid "Channel" column. Enter the Subscription ID (as shown in ChannelUnity) and the name you want displayed, e.g. "My eBay Store" or "My Second eBay Store". Orders with no mapping fall back to the marketplace name (e.g. "eBay UK").]]></comment>
+                </field>
             </group>
         </section>
     </system>

@@ -529,7 +529,14 @@ class Orders extends AbstractModel
             $str .= "<Imported>$order->OrderId</Imported>\n";
 
             $newOrder->setEmailSent(0);
-            $newOrder->addStatusHistoryComment('Order imported by ChannelUnity', false);
+
+            $channelName = $this->helper->resolveChannelName(
+                (string) $dataArray->SubscriptionId,
+                (string) $order->ServiceSku
+            );
+            $newOrder->setData('channelunity_channel', $channelName);
+
+            $newOrder->addStatusHistoryComment('Order imported by ChannelUnity from ' . $channelName, false);
 
             $strDeliveryInstr = (string) $order->DeliveryInstructions;
             if ($strDeliveryInstr != '') {

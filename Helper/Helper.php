@@ -349,6 +349,54 @@ XML;
         return $csku[$serviceType] ?? "Unknown";
     }
 
+    /**
+     * Returns the admin-configured map of subscription ID => friendly channel name.
+     *
+     * @return array
+     */
+    public function getSubscriptionMappings(): array
+    {
+        $raw = $this->getConfig('channelunityint/generalsettings/channelnames');
+        if (empty($raw)) {
+            return [];
+        }
+
+        try {
+            $rows = $this->jsonSerializer->unserialize($raw);
+        } catch (\Exception $e) {
+            return [];
+        }
+
+        $map = [];
+        if (is_array($rows)) {
+            foreach ($rows as $row) {
+                if (isset($row['subscription_id'], $row['display_name'])
+                    && $row['display_name'] !== '') {
+                    $map[(string) $row['subscription_id']] = (string) $row['display_name'];
+                }
+            }
+        }
+        return $map;
+    }
+
+    /**
+     * Resolves the friendly channel name for an order. Prefers the admin-configured
+     * name for the given subscription, otherwise falls back to the marketplace name
+     * derived from the service SKU.
+     *
+     * @param string $subscriptionId
+     * @param string $serviceSku
+     * @return string
+     */
+    public function resolveChannelName(string $subscriptionId, string $serviceSku): string
+    {
+        $map = $this->getSubscriptionMappings();
+        if ($subscriptionId !== '' && isset($map[$subscriptionId])) {
+            return $map[$subscriptionId];
+        }
+        return $this->channelSkuToName($serviceSku);
+    }
+
     public function getMagentoVersion(): string
     {
         return $this->productMetadata->getVersion();
