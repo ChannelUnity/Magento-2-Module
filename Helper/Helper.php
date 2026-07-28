@@ -19,6 +19,7 @@ use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\App\ProductMetadataInterface;
 use Magento\Framework\App\Config\Storage\WriterInterface;
 use Magento\Framework\Serialize\Serializer\Json;
+use Magento\Framework\Serialize\Serializer\Serialize;
 
 /**
  * Provides access to store settings, and cURL.
@@ -31,6 +32,7 @@ class Helper extends \Magento\Framework\App\Helper\AbstractHelper
     private $productMetadata;
     private $configWriter;
     private $jsonSerializer;
+    private $phpSerializer;
 
     public function __construct(
         Context $context,
@@ -39,7 +41,8 @@ class Helper extends \Magento\Framework\App\Helper\AbstractHelper
         Config $config,
         ProductMetadataInterface $productMetadata,
         WriterInterface $configWriter,
-        Json $jsonSerializer
+        Json $jsonSerializer,
+        Serialize $phpSerializer
     ) {
         parent::__construct($context);
         $this->curlClient = $curl;
@@ -48,6 +51,7 @@ class Helper extends \Magento\Framework\App\Helper\AbstractHelper
         $this->productMetadata = $productMetadata;
         $this->configWriter = $configWriter;
         $this->jsonSerializer = $jsonSerializer;
+        $this->phpSerializer = $phpSerializer;
     }
 
     public function getConfig($config)
@@ -355,12 +359,18 @@ XML;
     }
 
     /**
-     * Serializes data using Magento's modern JSON serializer
-     * (replacing deprecated ObjectManager and standard serialize)
+     * Serializes data for the ChannelUnity product XML export.
+     *
+     * Uses PHP serialize() (via Magento's DI-friendly Serialize serializer) because
+     * the ChannelUnity platform reads these values with unserialize() -- notably the
+     * media_gallery custom field and the configurable-attribute parsing in
+     * Model/Products.php, which expects the PHP-serialized "attribute_code"; token.
+     * Do NOT switch this to the JSON serializer: it changes the wire format and
+     * silently breaks image galleries and variation parsing downstream.
      */
     public function serialize($data): string
     {
-        return $this->jsonSerializer->serialize($data);
+        return $this->phpSerializer->serialize($data);
     }
 
     public function getTrackingNumbers($tracksCollection, $newTrack = null): array
