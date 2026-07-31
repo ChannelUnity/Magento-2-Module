@@ -1,0 +1,38 @@
+{
+    "product_updates": {
+        "column": {
+            "product_id": true,
+            "notes": true
+        },
+        "constraint": {
+            "PRIMARY": true
+        }
+    },
+    "sales_order": {
+        "column": {
+            "channelunity_channel": true
+        }
+    },
+    "sales_order_grid": {
+        "column": {
+            "channelunity_channel": true
+        },
+        "index": {
+            "CHANNELUNITY_SALES_ORDER_GRID_CHANNELUNITY_CHANNEL": true
+        }
+    },
+    "order_import_history": {
+        "column": {
+            "id": true,
+            "remote_order_id": true,
+            "subscription_id": true,
+            "created_at": true
+        },
+        "index": {
+            "OIH": true
+        },
+        "constraint": {
+            "PRIMARY": true
+        }
+    }
+}
