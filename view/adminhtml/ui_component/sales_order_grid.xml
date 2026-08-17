@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <listing xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Ui:etc/ui_configuration.xsd">
     <columns name="sales_order_columns">
-        <column name="channelunity_channel">
+        <column name="channelunity_channel" component="Magento_Ui/js/grid/columns/select">
             <settings>
-                <filter>text</filter>
+                <filter>select</filter>
+                <options class="Camiloo\Channelunity\Model\Config\Source\OrderChannel"/>
+                <dataType>select</dataType>
                 <label translate="true">Channel</label>
                 <visible>true</visible>
             </settings>
